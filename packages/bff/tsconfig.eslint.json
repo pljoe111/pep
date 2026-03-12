@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "."
+  },
+  "include": ["src", ".eslintrc.json", "vitest.config.ts", "prisma.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

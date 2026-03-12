@@ -1,0 +1,64 @@
+# ── Stage 1: Builder ─────────────────────────────────────────────────────────
+FROM node:24-alpine AS builder
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
+
+WORKDIR /app
+
+# Copy workspace manifests
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/common/package.json ./packages/common/
+COPY packages/bff/package.json ./packages/bff/
+
+# Install all dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY tsconfig.json ./
+COPY packages/common ./packages/common
+COPY packages/bff ./packages/bff
+
+# Build common first, then bff
+RUN pnpm --filter common build
+RUN pnpm --filter bff build
+
+# ── Stage 2: Production ───────────────────────────────────────────────────────
+FROM node:24-alpine AS production
+
+# dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
+
+WORKDIR /app
+
+# Copy workspace manifests (prod deps only)
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/common/package.json ./packages/common/
+COPY packages/bff/package.json ./packages/bff/
+COPY packages/bff/prisma ./packages/bff/prisma
+COPY packages/bff/prisma.config.ts ./packages/bff/
+
+# Install production deps only
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy built artifacts
+COPY --from=builder /app/packages/common/dist ./packages/common/dist
+COPY --from=builder /app/packages/bff/dist ./packages/bff/dist
+COPY --from=builder /app/packages/bff/src/generated ./packages/bff/src/generated
+COPY --from=builder /app/packages/bff/tsoa.json ./packages/bff/
+
+# Generate Prisma client
+WORKDIR /app/packages/bff
+RUN pnpm exec prisma generate
+
+# Run as non-root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 3000
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/server.js"]

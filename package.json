@@ -1,0 +1,36 @@
+{
+  "name": "my-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "dev:bff": "pnpm --filter bff dev",
+    "dev:fe": "pnpm --filter fe dev",
+    "build:common": "pnpm --filter common build",
+    "build:api-client": "pnpm generate:client && pnpm --filter api-client build",
+    "build:bff": "pnpm --filter bff build",
+    "build:fe": "pnpm --filter fe build",
+    "build": "pnpm build:common && pnpm build:api-client && pnpm build:bff && pnpm build:fe && pnpm lint",
+    "lint": "pnpm --filter common lint && pnpm --filter bff lint && pnpm --filter fe lint && pnpm --filter api-client lint",
+    "format": "pnpm --filter common format && pnpm --filter bff format && pnpm --filter fe format && pnpm --filter api-client format",
+    "format:check": "pnpm --filter common format:check && pnpm --filter bff format:check && pnpm --filter fe format:check && pnpm --filter api-client format:check",
+    "generate:client": "pnpm --filter bff tsoa:spec-and-routes && pnpm --filter api-client generate",
+    "test:bff": "pnpm --filter bff test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.1.1",
+    "prettier-plugin-prisma": "^5.0.0",
+    "typescript": "^5.3.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["prettier --write"],
+    "*.{json,md,prisma}": ["prettier --write"]
+  }
+}

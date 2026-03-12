@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+packages/bff/src/generated/
+packages/api-client/src/generated/
+pnpm-lock.yaml
+*.min.js
+nginx.conf

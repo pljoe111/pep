@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Source nvm if available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Use the Node version from .nvmrc if present
+if [ -f .nvmrc ]; then
+  nvm use
+fi
+
+pnpm lint-staged

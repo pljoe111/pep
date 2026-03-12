@@ -1,0 +1,26 @@
+{
+  "name": "api-client",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "generate": "openapi-generator-cli generate -i ../bff/src/generated/swagger.json -g typescript-axios -o src/generated --additional-properties=supportsES6=true,withSeparateModelsAndApi=true,modelPackage=models,apiPackage=api",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{ts,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,json}\""
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.7.0",
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  }
+}
