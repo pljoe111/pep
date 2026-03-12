@@ -67,6 +67,7 @@ pnpm tsoa:spec-and-routes
 The root `pnpm generate:client` script runs both steps in order.
 
 **Key files:**
+
 - `packages/bff/tsoa.json` — TSOA configuration (controller globs, spec output path, base path)
 - `packages/bff/src/generated/` — gitignored, always regenerated
 - `packages/api-client/src/generated/` — gitignored, always regenerated
@@ -81,6 +82,7 @@ The root `pnpm generate:client` script runs both steps in order.
 1. **Create directory**: `packages/my-package/`
 
 2. **`package.json`**:
+
    ```json
    {
      "name": "my-package",
@@ -100,22 +102,34 @@ The root `pnpm generate:client` script runs both steps in order.
    ```
 
 3. **`tsconfig.json`**:
+
    ```json
    {
-     "extends": "../../tsconfig.json",
+     "extends": "../../tsconfig.base.json",
      "compilerOptions": {
+       "composite": true,
        "outDir": "./dist",
-       "rootDir": "./src"
+       "rootDir": "./src",
+       "noEmit": false
      },
-     "include": ["src"]
+     "include": ["src"],
+     "exclude": ["node_modules", "dist", "**/*.test.ts"]
    }
    ```
 
 4. **`.eslintrc.json`**: Copy from `packages/common/.eslintrc.json` and adjust `env`.
 
-5. **Add to root scripts** in `package.json` (`build:my-package`, `lint`, etc.)
+5. **Add to root `tsconfig.json` references**:
 
-6. **pnpm install** — pnpm auto-discovers all packages in `packages/*`.
+   ```json
+   { "path": "packages/my-package" }
+   ```
+
+6. **Add to root scripts** in `package.json` (`build:my-package`, `lint`, etc.)
+
+7. **pnpm install** — pnpm auto-discovers all packages in `packages/*`.
+
+> **Note:** The root `tsconfig.json` is a solution-style config pointing to sub-packages via `references`. Shared compiler options live in `tsconfig.base.json`, which sub-packages extend.
 
 ---
 
@@ -208,10 +222,10 @@ pnpm build:bff
 
 ## Git Hooks
 
-| Hook | Trigger | Action |
-|------|---------|--------|
+| Hook         | Trigger      | Action                                   |
+| ------------ | ------------ | ---------------------------------------- |
 | `pre-commit` | `git commit` | `lint-staged` (prettier on staged files) |
-| `pre-push` | `git push` | `pnpm build` (full build) |
+| `pre-push`   | `git push`   | `pnpm build` (full build)                |
 
 Hooks source `nvm` and call `nvm use` if `.nvmrc` exists.
 
@@ -250,11 +264,13 @@ docker build -f Dockerfile.fe --build-arg VITE_API_URL=https://api.example.com -
 ### Multi-stage Details
 
 **Dockerfile.bff**:
+
 - Stage `builder`: full deps, builds `common` + `bff`
 - Stage `production`: prod deps only, runs as non-root, uses `dumb-init`
 - Entrypoint: `prisma migrate deploy && node dist/server.js`
 
 **Dockerfile.fe**:
+
 - Stage `builder`: full deps, builds `common` + `api-client` + `fe`
 - Stage `production`: nginx:alpine with SPA config, gzip, security headers, `/health`
 
@@ -263,22 +279,29 @@ docker build -f Dockerfile.fe --build-arg VITE_API_URL=https://api.example.com -
 ## Troubleshooting
 
 ### "Cannot find module 'common'"
+
 Build `common` first: `pnpm build:common`. The workspace symlink points to `dist/`, which must exist.
 
 ### "Cannot find module './generated/routes'"
+
 Run `pnpm generate:client` to generate TSOA routes. The generated directory is gitignored.
 
 ### Prisma Client not generated
+
 Run `pnpm --filter bff prisma:generate`. This is normally done automatically during `pnpm build`.
 
 ### Git hooks not running
+
 Make sure hooks are executable: `chmod +x .husky/pre-commit .husky/pre-push`
 
 ### `pnpm install --frozen-lockfile` fails in CI
+
 Someone added/changed a dependency without committing `pnpm-lock.yaml`. Run `pnpm install` locally and commit the lockfile.
 
 ### Docker: Prisma generate fails on ARM (M1/M2/M3)
+
 Add `binaryTargets` to `schema.prisma`:
+
 ```prisma
 generator client {
   provider      = "prisma-client-js"
@@ -287,4 +310,5 @@ generator client {
 ```
 
 ### Vite can't reach the BFF
+
 Check that `VITE_API_URL` points to the correct BFF URL, or that the Vite proxy (`/api → http://localhost:3000`) is running.
