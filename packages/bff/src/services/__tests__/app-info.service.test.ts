@@ -45,6 +45,11 @@ describe('AppInfo endpoint shape', () => {
     expect(typeof result.network).toBe('string');
     expect(typeof result.usdc_mint).toBe('string');
     expect(typeof result.usdt_mint).toBe('string');
+    // Strengthened: verify actual values — typeof passes for "", these do not.
+    expect(result.usdc_mint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    expect(result.usdt_mint).toBe('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
+    expect(result.version).toBeTruthy();
+    expect(result.network).toBeTruthy();
   });
 
   it('minimums are sourced from ConfigurationService with key global_minimums', async () => {
@@ -61,5 +66,18 @@ describe('AppInfo endpoint shape', () => {
 
     expect(result.minimums).toEqual(mockMinimums);
     expect(getMock).toHaveBeenCalledWith('global_minimums');
+  });
+
+  it('propagates rejection when ConfigurationService.get rejects', async () => {
+    const { AppInfoController } = await import('../../controllers/app-info.controller');
+
+    const getMock = vi
+      .fn<[string], Promise<GlobalMinimumsConfig>>()
+      .mockRejectedValue(new Error('config DB unavailable'));
+    // SAFETY: only the `get` method is called by the controller.
+    const mockConfigService = { get: getMock } as unknown as ConfigurationService;
+
+    const controller = new AppInfoController(mockConfigService);
+    await expect(controller.getAppInfo()).rejects.toThrow('config DB unavailable');
   });
 });
