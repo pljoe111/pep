@@ -16,10 +16,9 @@ import {
   Query,
   OperationId,
 } from 'tsoa';
-import type { Request as ExpressRequest } from 'express';
 import { TestService } from '../services/test.service';
 import type { TestDto, CreateTestDto, UpdateTestDto } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('tests')
 @Tags('Tests')
@@ -39,12 +38,9 @@ export class TestController extends Controller {
   @Post('/')
   @Security('jwt')
   @OperationId('CreateTest')
-  public async create(
-    @Body() body: CreateTestDto,
-    @Request() req: ExpressRequest
-  ): Promise<TestDto> {
+  public async create(@Body() body: CreateTestDto, @Request() req: AuthRequest): Promise<TestDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.testService.create(body, user.userId);
   }
 
@@ -55,10 +51,10 @@ export class TestController extends Controller {
   public async update(
     @Path() id: string,
     @Body() body: UpdateTestDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<TestDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.testService.update(id, body, user.userId);
   }
 }

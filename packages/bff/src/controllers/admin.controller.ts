@@ -15,7 +15,6 @@ import {
   Path,
   Query,
 } from 'tsoa';
-import type { Request as ExpressRequest } from 'express';
 import { AdminService } from '../services/admin.service';
 import type {
   CampaignDetailDto,
@@ -32,7 +31,7 @@ import type {
   AdminFeeSweepDto,
   PaginatedResponseDto,
 } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('admin')
 @Tags('Admin')
@@ -58,10 +57,10 @@ export class AdminController extends Controller {
   public async refundCampaign(
     @Path() id: string,
     @Body() body: AdminRefundDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.forceRefund(user.userId, id, body.reason);
   }
 
@@ -70,10 +69,10 @@ export class AdminController extends Controller {
   public async hideCampaign(
     @Path() id: string,
     @Body() body: AdminHideCampaignDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.hideCampaign(user.userId, id, body.hidden);
   }
 
@@ -82,10 +81,10 @@ export class AdminController extends Controller {
   public async verifyCoa(
     @Path() id: string,
     @Body() body: AdminVerifyCoaDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CoaDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.verifyCoa(user.userId, id, body);
   }
 
@@ -94,10 +93,10 @@ export class AdminController extends Controller {
   public async banUser(
     @Path() id: string,
     @Body() body: AdminBanUserDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.banUser(user.userId, id, body);
   }
 
@@ -106,10 +105,10 @@ export class AdminController extends Controller {
   public async manageClaim(
     @Path() id: string,
     @Body() body: AdminClaimDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.manageClaim(user.userId, id, body);
   }
 
@@ -124,10 +123,10 @@ export class AdminController extends Controller {
   public async updateConfig(
     @Path() key: string,
     @Body() body: AdminUpdateConfigDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<ConfigurationDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.updateConfig(user.userId, key, body.value);
   }
 
@@ -135,10 +134,10 @@ export class AdminController extends Controller {
   @Post('fee-sweep')
   public async sweepFees(
     @Body() body: AdminFeeSweepDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<FeeSweepResponseDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.adminService.sweepFees(user.userId, body);
   }
 }

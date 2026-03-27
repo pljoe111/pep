@@ -29,7 +29,7 @@ import type {
   MessageResponseDto,
   UserDto,
 } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('auth')
 @Tags('Auth')
@@ -72,9 +72,9 @@ export class AuthController extends Controller {
   @Post('logout')
   @Security('jwt')
   @SuccessResponse(204, 'No Content')
-  public async logout(@Request() req: ExpressRequest): Promise<void> {
+  public async logout(@Request() req: AuthRequest): Promise<void> {
     // SAFETY: expressAuthentication guarantees req.user is JwtPayload on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     await this.authService.logout(user.userId);
     this.setStatus(204);
   }
@@ -82,9 +82,9 @@ export class AuthController extends Controller {
   /** GET /auth/me — spec §9.1 */
   @Get('me')
   @Security('jwt')
-  public async me(@Request() req: ExpressRequest): Promise<UserDto> {
+  public async me(@Request() req: AuthRequest): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user is JwtPayload on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.authService.buildUserDto(user.userId);
   }
 
@@ -101,9 +101,9 @@ export class AuthController extends Controller {
   /** POST /auth/resend-verification — spec §9.1 (JWT required) */
   @Post('resend-verification')
   @Security('jwt')
-  public async resendVerification(@Request() req: ExpressRequest): Promise<MessageResponseDto> {
+  public async resendVerification(@Request() req: AuthRequest): Promise<MessageResponseDto> {
     // SAFETY: expressAuthentication guarantees req.user is JwtPayload on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     await this.authService.resendVerification(user.userId);
     return { message: 'Verification email sent' };
   }

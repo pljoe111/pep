@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node-dev --inspect -- src/server.ts",
+    "dev": "tsoa spec-and-routes && ts-node-dev --inspect -- src/server.ts",
     "build": "pnpm exec prisma generate && tsoa spec-and-routes && tsc",
     "start": "node dist/server.js",
     "test": "vitest",

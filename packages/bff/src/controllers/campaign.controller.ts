@@ -19,7 +19,6 @@ import {
   UploadedFile,
   OperationId,
 } from 'tsoa';
-import type { Request as ExpressRequest } from 'express';
 import { CampaignService } from '../services/campaign.service';
 import { ContributionService } from '../services/contribution.service';
 import type {
@@ -38,7 +37,7 @@ import type {
   VerificationCodeResponseDto,
   PaginatedResponseDto,
 } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 import { CoaService } from '../services/coa.service';
 
 @Route('campaigns')
@@ -73,13 +72,13 @@ export class CampaignController extends Controller {
   @Get('me')
   @Security('jwt')
   public async getMyCampaigns(
-    @Request() req: ExpressRequest,
+    @Request() req: AuthRequest,
     @Query() page?: number,
     @Query() limit?: number,
     @Query() status?: string
   ): Promise<PaginatedResponseDto<CampaignListDto>> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.findMyCampaignsByUser(user.userId, page, limit, status);
   }
 
@@ -88,7 +87,7 @@ export class CampaignController extends Controller {
   @Get('/')
   @OperationId('GetAllCampaigns')
   public async getAll(
-    @Request() req: ExpressRequest,
+    @Request() req: AuthRequest,
     @Query() status?: string,
     @Query() search?: string,
     @Query() sort?: string,
@@ -107,10 +106,10 @@ export class CampaignController extends Controller {
   @SuccessResponse(201, 'Created')
   public async createCampaign(
     @Body() body: CreateCampaignDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     this.setStatus(201);
     return this.campaignService.createCampaign(user.userId, body);
   }
@@ -121,7 +120,7 @@ export class CampaignController extends Controller {
   @OperationId('GetCampaignById')
   public async getById(
     @Path() id: string,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     const user = req.user;
     return this.campaignService.getCampaignDetail(id, user?.userId);
@@ -134,10 +133,10 @@ export class CampaignController extends Controller {
   public async updateCampaign(
     @Path() id: string,
     @Body() body: UpdateCampaignDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.updateCampaign(user.userId, id, body);
   }
 
@@ -146,9 +145,9 @@ export class CampaignController extends Controller {
   @Delete('{id}')
   @Security('jwt')
   @SuccessResponse(204, 'No Content')
-  public async deleteCampaign(@Path() id: string, @Request() req: ExpressRequest): Promise<void> {
+  public async deleteCampaign(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     await this.campaignService.deleteCampaign(user.userId, id);
     this.setStatus(204);
   }
@@ -159,10 +158,10 @@ export class CampaignController extends Controller {
   @Security('jwt')
   public async lockCampaign(
     @Path() id: string,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.lockCampaign(user.userId, id);
   }
 
@@ -172,10 +171,10 @@ export class CampaignController extends Controller {
   @Security('jwt')
   public async shipSamples(
     @Path() id: string,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignDetailDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.shipSamples(user.userId, id);
   }
 
@@ -186,10 +185,10 @@ export class CampaignController extends Controller {
   public async addUpdate(
     @Path() id: string,
     @Body() body: AddCampaignUpdateDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CampaignUpdateDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.addUpdate(user.userId, id, body);
   }
 
@@ -237,10 +236,10 @@ export class CampaignController extends Controller {
   public async addReaction(
     @Path() id: string,
     @Body() body: AddReactionDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<{ reaction_type: string; created_at: string }> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.campaignService.addReaction(user.userId, id, body);
   }
 
@@ -252,10 +251,10 @@ export class CampaignController extends Controller {
   public async removeReaction(
     @Path() id: string,
     @Path() type: string,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<void> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     await this.campaignService.removeReaction(user.userId, id, type);
     this.setStatus(204);
   }
@@ -267,10 +266,10 @@ export class CampaignController extends Controller {
   public async contribute(
     @Path() id: string,
     @Body() body: ContributeDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<ContributionDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.contributionService.contribute(
       user.userId,
       id,
@@ -288,10 +287,10 @@ export class CampaignController extends Controller {
     @Path() id: string,
     @Path() sampleId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<CoaDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.coaService.uploadCoa(user.userId, id, sampleId, file.buffer, file.originalname);
   }
 }

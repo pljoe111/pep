@@ -3,7 +3,6 @@
  */
 import { inject } from 'tsyringe';
 import { Controller, Get, Patch, Route, Tags, Body, Request, Security, Path } from 'tsoa';
-import type { Request as ExpressRequest } from 'express';
 import { UserService } from '../services/user.service';
 import type {
   UserDto,
@@ -11,7 +10,7 @@ import type {
   UpdateUserDto,
   NotificationPreferencesDto,
 } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('users')
 @Tags('Users')
@@ -23,9 +22,9 @@ export class UserController extends Controller {
   /** GET /users/me — spec §9.7 */
   @Get('me')
   @Security('jwt')
-  public async getMe(@Request() req: ExpressRequest): Promise<UserDto> {
+  public async getMe(@Request() req: AuthRequest): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.userService.getUser(user.userId);
   }
 
@@ -34,10 +33,10 @@ export class UserController extends Controller {
   @Security('jwt')
   public async updateMe(
     @Body() body: UpdateUserDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.userService.updateUsername(user.userId, body, req.ip ?? undefined);
   }
 
@@ -46,10 +45,10 @@ export class UserController extends Controller {
   @Security('jwt')
   public async updateNotificationPreferences(
     @Body() body: NotificationPreferencesDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<UserDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.userService.updateNotificationPreferences(user.userId, body, req.ip ?? undefined);
   }
 

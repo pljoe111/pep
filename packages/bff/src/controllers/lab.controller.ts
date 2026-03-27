@@ -16,7 +16,6 @@ import {
   Query,
   OperationId,
 } from 'tsoa';
-import type { Request as ExpressRequest } from 'express';
 import { LabService } from '../services/lab.service';
 import type {
   LabDto,
@@ -28,7 +27,7 @@ import type {
   UpdateLabTestDto,
   PaginatedResponseDto,
 } from 'common';
-import type { JwtPayload } from '../middleware/auth.middleware';
+import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('labs')
 @Tags('Labs')
@@ -58,9 +57,9 @@ export class LabController extends Controller {
   /** POST /labs — lab_approver required */
   @Post('/')
   @Security('jwt')
-  public async create(@Body() body: CreateLabDto, @Request() req: ExpressRequest): Promise<LabDto> {
+  public async create(@Body() body: CreateLabDto, @Request() req: AuthRequest): Promise<LabDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.labService.create(body, user.userId);
   }
 
@@ -70,19 +69,19 @@ export class LabController extends Controller {
   public async update(
     @Path() id: string,
     @Body() body: UpdateLabDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<LabDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.labService.update(id, body, user.userId);
   }
 
   /** POST /labs/:id/approve */
   @Post('{id}/approve')
   @Security('jwt')
-  public async approve(@Path() id: string, @Request() req: ExpressRequest): Promise<LabDto> {
+  public async approve(@Path() id: string, @Request() req: AuthRequest): Promise<LabDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.labService.approve(id, user.userId);
   }
 
@@ -92,10 +91,10 @@ export class LabController extends Controller {
   public async addTest(
     @Path() id: string,
     @Body() body: CreateLabTestDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<LabTestDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.labService.addTest(id, body, user.userId);
   }
 
@@ -106,10 +105,10 @@ export class LabController extends Controller {
     @Path() id: string,
     @Path() testId: string,
     @Body() body: UpdateLabTestDto,
-    @Request() req: ExpressRequest
+    @Request() req: AuthRequest
   ): Promise<LabTestDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
-    const user = req.user as JwtPayload;
+    const user = req.user;
     return this.labService.updateTest(id, testId, body, user.userId);
   }
 }

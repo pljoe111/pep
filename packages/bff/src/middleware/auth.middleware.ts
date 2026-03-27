@@ -14,6 +14,10 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.config';
 import { AuthenticationError, AuthorizationError } from '../utils/errors';
 import type { ClaimType } from 'common';
+import type { Request as ExpressRequest } from 'express';
+
+/** Express request enriched by expressAuthentication (tsoa §Security routes). */
+export type AuthRequest = ExpressRequest & { user: JwtPayload };
 
 export interface JwtPayload {
   userId: string;
