@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #0d9488;
+  --color-primary-d: #0f766e;
+  --color-primary-l: #ccfbf1;
+  --color-bg: #f5f4f1;
+  --color-surface: #ffffff;
+  --color-surface-a: #fafaf9;
+  --color-border: #e7e5e4;
+  --color-text: #1c1917;
+  --color-text-2: #78716c;
+  --color-text-3: #a8a29e;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Remove default button styles */
+button {
+  cursor: pointer;
+}
+
+/* Safe bottom padding for iOS home bar */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
