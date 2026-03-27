@@ -1,0 +1,144 @@
+/**
+ * AdminController — spec §9.12
+ */
+import { inject } from 'tsyringe';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Route,
+  Tags,
+  Body,
+  Request,
+  Security,
+  Path,
+  Query,
+} from 'tsoa';
+import type { Request as ExpressRequest } from 'express';
+import { AdminService } from '../services/admin.service';
+import type {
+  CampaignDetailDto,
+  UserDto,
+  ConfigurationDto,
+  FeeSweepResponseDto,
+  CoaDto,
+  AdminRefundDto,
+  AdminHideCampaignDto,
+  AdminBanUserDto,
+  AdminClaimDto,
+  AdminVerifyCoaDto,
+  AdminUpdateConfigDto,
+  AdminFeeSweepDto,
+  PaginatedResponseDto,
+} from 'common';
+import type { JwtPayload } from '../middleware/auth.middleware';
+
+@Route('admin')
+@Tags('Admin')
+@Security('jwt')
+export class AdminController extends Controller {
+  constructor(@inject(AdminService) private readonly adminService: AdminService) {
+    super();
+  }
+
+  /** GET /admin/campaigns */
+  @Get('campaigns')
+  public async getCampaigns(
+    @Query() status?: string,
+    @Query() flagged?: boolean,
+    @Query() page?: number,
+    @Query() limit?: number
+  ): Promise<PaginatedResponseDto<CampaignDetailDto>> {
+    return this.adminService.getCampaigns(status, flagged, page, limit);
+  }
+
+  /** POST /admin/campaigns/:id/refund */
+  @Post('campaigns/{id}/refund')
+  public async refundCampaign(
+    @Path() id: string,
+    @Body() body: AdminRefundDto,
+    @Request() req: ExpressRequest
+  ): Promise<CampaignDetailDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.forceRefund(user.userId, id, body.reason);
+  }
+
+  /** POST /admin/campaigns/:id/hide */
+  @Post('campaigns/{id}/hide')
+  public async hideCampaign(
+    @Path() id: string,
+    @Body() body: AdminHideCampaignDto,
+    @Request() req: ExpressRequest
+  ): Promise<CampaignDetailDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.hideCampaign(user.userId, id, body.hidden);
+  }
+
+  /** POST /admin/coas/:id/verify */
+  @Post('coas/{id}/verify')
+  public async verifyCoa(
+    @Path() id: string,
+    @Body() body: AdminVerifyCoaDto,
+    @Request() req: ExpressRequest
+  ): Promise<CoaDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.verifyCoa(user.userId, id, body);
+  }
+
+  /** POST /admin/users/:id/ban */
+  @Post('users/{id}/ban')
+  public async banUser(
+    @Path() id: string,
+    @Body() body: AdminBanUserDto,
+    @Request() req: ExpressRequest
+  ): Promise<UserDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.banUser(user.userId, id, body);
+  }
+
+  /** POST /admin/users/:id/claims */
+  @Post('users/{id}/claims')
+  public async manageClaim(
+    @Path() id: string,
+    @Body() body: AdminClaimDto,
+    @Request() req: ExpressRequest
+  ): Promise<UserDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.manageClaim(user.userId, id, body);
+  }
+
+  /** GET /admin/config */
+  @Get('config')
+  public async getConfig(): Promise<ConfigurationDto[]> {
+    return this.adminService.getConfig();
+  }
+
+  /** PUT /admin/config/:key */
+  @Put('config/{key}')
+  public async updateConfig(
+    @Path() key: string,
+    @Body() body: AdminUpdateConfigDto,
+    @Request() req: ExpressRequest
+  ): Promise<ConfigurationDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.updateConfig(user.userId, key, body.value);
+  }
+
+  /** POST /admin/fee-sweep */
+  @Post('fee-sweep')
+  public async sweepFees(
+    @Body() body: AdminFeeSweepDto,
+    @Request() req: ExpressRequest
+  ): Promise<FeeSweepResponseDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user as JwtPayload;
+    return this.adminService.sweepFees(user.userId, body);
+  }
+}

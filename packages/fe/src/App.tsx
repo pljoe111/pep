@@ -35,15 +35,15 @@ function App(): React.ReactElement {
           <tbody>
             <tr>
               <td style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>Name</td>
-              <td style={{ padding: '0.5rem 1rem' }}>{info.name}</td>
+              <td style={{ padding: '0.5rem 1rem' }}>Peptide Crowdfunding Platform</td>
             </tr>
             <tr>
               <td style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>Version</td>
               <td style={{ padding: '0.5rem 1rem' }}>{info.version}</td>
             </tr>
             <tr>
-              <td style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>Environment</td>
-              <td style={{ padding: '0.5rem 1rem' }}>{info.environment}</td>
+              <td style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>Network</td>
+              <td style={{ padding: '0.5rem 1rem' }}>{info.network}</td>
             </tr>
           </tbody>
         </table>

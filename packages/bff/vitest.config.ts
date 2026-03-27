@@ -9,6 +9,6 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'dist/', 'src/generated/'],
     },
-    setupFiles: [],
+    setupFiles: ['reflect-metadata'],
   },
 });

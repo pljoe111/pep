@@ -1,5 +1,17 @@
+/** Global platform minimums — mirrors the 'global_minimums' Configuration row. */
+export interface GlobalMinimumsConfig {
+  min_contribution_usd: number;
+  min_funding_threshold_usd: number;
+  min_funding_threshold_percent: number;
+  min_withdrawal_usd: number;
+}
+
+/** GET /app-info response — spec §9.13 */
 export interface AppInfoDto {
-  name: string;
   version: string;
-  environment: string;
+  /** 'devnet' | 'mainnet-beta' | 'testnet' */
+  network: string;
+  usdc_mint: string;
+  usdt_mint: string;
+  minimums: GlobalMinimumsConfig;
 }

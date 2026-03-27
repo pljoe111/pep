@@ -5,16 +5,25 @@
   "spec": {
     "outputDirectory": "src/generated",
     "specVersion": 3,
-    "name": "My Monorepo API",
-    "description": "API documentation for the BFF service",
+    "name": "Peptide Crowdfunding Platform API",
+    "description": "API documentation for the Peptide Crowdfunding BFF service",
     "version": "1.0.0",
     "contact": {
       "name": "API Support"
+    },
+    "securityDefinitions": {
+      "jwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     }
   },
   "routes": {
     "routesDir": "src/generated",
     "middleware": "express",
-    "basePath": "/api"
+    "basePath": "/api",
+    "authenticationModule": "./src/middleware/auth.middleware",
+    "iocModule": "./src/ioc"
   }
 }

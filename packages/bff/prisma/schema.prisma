@@ -1,17 +1,521 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Peptide Crowdfunding Platform — Prisma Schema
+// Matches system-spec-v3.md section 4 exactly.
+// All PKs are UUIDs (gen_random_uuid()). All timestamps TIMESTAMPTZ (UTC).
+// All monetary fields use Decimal (PostgreSQL NUMERIC) — never Float.
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
+  provider = "postgresql"
 }
 
-model Item {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    name      String
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum ClaimType {
+  campaign_creator
+  contributor
+  lab_approver
+  admin
+}
+
+enum CampaignStatus {
+  created
+  funded
+  samples_sent
+  results_published
+  resolved
+  refunded
+}
+
+enum Currency {
+  usdc
+  usdt
+}
+
+enum AccountType {
+  user
+  campaign
+  master
+  fee
+  external
+}
+
+enum TransactionType {
+  deposit
+  withdrawal
+  contribution
+  refund
+  payout
+  fee
+}
+
+enum TxStatus {
+  completed
+  pending
+  confirmed
+  failed
+}
+
+enum ContributionStatus {
+  completed
+  refunded
+}
+
+enum ClaimKind {
+  mass
+  other
+}
+
+enum VerificationStatus {
+  pending
+  code_found
+  code_not_found
+  manually_approved
+  rejected
+}
+
+enum UpdateType {
+  text
+  state_change
+}
+
+enum ReactionType {
+  thumbs_up
+  rocket
+  praising_hands
+  mad
+  fire
+}
+
+enum NotificationType {
+  campaign_funded
+  campaign_locked
+  samples_shipped
+  coa_uploaded
+  campaign_resolved
+  campaign_refunded
+  deposit_confirmed
+  withdrawal_sent
+  withdrawal_failed
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// §4.1
+model User {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                    String   @unique @db.VarChar(255)
+  password_hash            String   @db.VarChar(255)
+  username                 String?  @unique @db.VarChar(50)
+  is_banned                Boolean  @default(false)
+  email_verified           Boolean  @default(false)
+  notification_preferences Json     @default("{}")
+  created_at               DateTime @default(now()) @db.Timestamptz
+  updated_at               DateTime @updatedAt @db.Timestamptz
+
+  @@index([email])
+  @@index([username])
+  @@map("user")
+}
+
+// §4.2 — Roles stored as claim rows, not columns on User.
+// On registration: grant campaign_creator and contributor to every new user.
+model UserClaim {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String    @db.Uuid
+  claim_type         ClaimType
+  granted_at         DateTime  @default(now()) @db.Timestamptz
+  granted_by_user_id String?   @db.Uuid
+
+  @@unique([user_id, claim_type])
+  @@index([user_id])
+  @@map("user_claim")
+}
+
+// §4.3 — Stored in DB for single-use rotation and revocation on ban.
+// token_hash: SHA-256 hex of the raw token
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token_hash String    @unique @db.VarChar(64)
+  expires_at DateTime  @db.Timestamptz
+  used_at    DateTime? @db.Timestamptz
+  created_at DateTime  @default(now()) @db.Timestamptz
+  ip_address String?   @db.VarChar(45)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("refresh_token")
+}
+
+// §4.4 — One row per user. Source of truth for spendable balance.
+// DB check constraints added via raw SQL migration:
+//   ALTER TABLE ledger_account ADD CONSTRAINT balance_usdc_non_negative CHECK (balance_usdc >= 0);
+//   ALTER TABLE ledger_account ADD CONSTRAINT balance_usdt_non_negative CHECK (balance_usdt >= 0);
+model LedgerAccount {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                 String   @unique @db.Uuid
+  balance_usdc            Decimal  @default(0) @db.Decimal(18, 6)
+  balance_usdt            Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_deposited_usdc Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_deposited_usdt Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_withdrawn_usdc Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_withdrawn_usdt Decimal  @default(0) @db.Decimal(18, 6)
+  created_at              DateTime @default(now()) @db.Timestamptz
+  updated_at              DateTime @updatedAt @db.Timestamptz
+
+  @@map("ledger_account")
+}
+
+// §4.5 — One per user. Funds swept to master wallet immediately on detection.
+// encrypted_private_key: AES-256-GCM; never returned by API
+model DepositAddress {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String   @unique @db.Uuid
+  public_key            String   @unique @db.VarChar(44)
+  encrypted_private_key String   @db.Text
+  created_at            DateTime @default(now()) @db.Timestamptz
+
+  @@map("deposit_address")
+}
+
+// §4.6 — Idempotency guard. One row per successfully processed deposit.
+model ProcessedDepositSignature {
+  id                         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  signature                  String   @unique @db.VarChar(88)
+  deposit_address_public_key String   @db.VarChar(44)
+  amount                     Decimal  @db.Decimal(18, 6)
+  currency                   Currency
+  processed_at               DateTime @default(now()) @db.Timestamptz
+
+  @@index([deposit_address_public_key])
+  @@map("processed_deposit_signature")
+}
+
+// §4.7 — Campaign model. is_hidden added per §9.12 admin hide endpoint.
+// DB check constraints:
+//   ALTER TABLE campaign ADD CONSTRAINT amount_requested_positive CHECK (amount_requested_usd > 0);
+//   ALTER TABLE campaign ADD CONSTRAINT threshold_percent_range CHECK (funding_threshold_percent BETWEEN 5 AND 100);
+model Campaign {
+  id                        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id                String         @db.Uuid
+  verification_code         Int            @unique
+  title                     String         @db.VarChar(200)
+  description               String         @db.Text
+  amount_requested_usd      Decimal        @db.Decimal(10, 2)
+  funding_threshold_percent Int
+  funding_threshold_usd     Decimal        @db.Decimal(10, 2)
+  current_funding_usd       Decimal        @default(0) @db.Decimal(10, 2)
+  estimated_lab_cost_usd    Decimal        @db.Decimal(10, 2)
+  status                    CampaignStatus @default(created)
+  is_itemized               Boolean        @default(false)
+  itemization_data          Json?
+  is_flagged_for_review     Boolean        @default(false)
+  flagged_reason            String?        @db.Text
+  is_hidden                 Boolean        @default(false)
+  platform_fee_percent      Decimal        @db.Decimal(5, 2)
+  created_at                DateTime       @default(now()) @db.Timestamptz
+  funded_at                 DateTime?      @db.Timestamptz
+  locked_at                 DateTime?      @db.Timestamptz
+  samples_sent_at           DateTime?      @db.Timestamptz
+  results_published_at      DateTime?      @db.Timestamptz
+  resolved_at               DateTime?      @db.Timestamptz
+  refunded_at               DateTime?      @db.Timestamptz
+  refund_reason             String?        @db.Text
+  deadline_fundraising      DateTime       @db.Timestamptz
+  deadline_ship_samples     DateTime?      @db.Timestamptz
+  deadline_publish_results  DateTime?      @db.Timestamptz
+
+  @@index([creator_id])
+  @@index([status])
+  @@index([verification_code])
+  @@index([created_at])
+  @@map("campaign")
+}
+
+// §4.8 — One per campaign. Internal balance only — no on-chain wallet.
+// DB check constraints:
+//   ALTER TABLE campaign_escrow ADD CONSTRAINT escrow_usdc_non_negative CHECK (balance_usdc >= 0);
+//   ALTER TABLE campaign_escrow ADD CONSTRAINT escrow_usdt_non_negative CHECK (balance_usdt >= 0);
+model CampaignEscrow {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id  String   @unique @db.Uuid
+  balance_usdc Decimal  @default(0) @db.Decimal(18, 6)
+  balance_usdt Decimal  @default(0) @db.Decimal(18, 6)
+  created_at   DateTime @default(now()) @db.Timestamptz
+  updated_at   DateTime @updatedAt @db.Timestamptz
+
+  @@map("campaign_escrow")
+}
+
+// §4.9 — Exactly one row, seeded at migration time. Never insert a second row.
+model FeeAccount {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  balance_usdc Decimal  @default(0) @db.Decimal(18, 6)
+  balance_usdt Decimal  @default(0) @db.Decimal(18, 6)
+  updated_at   DateTime @updatedAt @db.Timestamptz
+
+  @@map("fee_account")
+}
+
+// §4.10 — Append-only. Only permitted UPDATE: status pending→confirmed|failed on withdrawals.
+// Type → account mapping enforced in service code per spec table in §4.10.
+model LedgerTransaction {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_type  TransactionType
+  amount            Decimal         @db.Decimal(18, 6)
+  currency          Currency
+  from_account_type AccountType
+  from_account_id   String?         @db.Uuid
+  to_account_type   AccountType
+  to_account_id     String?         @db.Uuid
+  external_address  String?         @db.VarChar(44)
+  onchain_signature String?         @db.VarChar(88)
+  reference_id      String?         @db.Uuid
+  status            TxStatus        @default(completed)
+  created_at        DateTime        @default(now()) @db.Timestamptz
+
+  @@index([from_account_type, from_account_id])
+  @@index([to_account_type, to_account_id])
+  @@index([onchain_signature])
+  @@index([transaction_type])
+  @@index([status])
+  @@index([reference_id])
+  @@index([created_at])
+  @@map("ledger_transaction")
+}
+
+// §4.11
+model Contribution {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id    String             @db.Uuid
+  contributor_id String             @db.Uuid
+  amount_usd     Decimal            @db.Decimal(10, 2)
+  currency       Currency
+  status         ContributionStatus @default(completed)
+  contributed_at DateTime           @default(now()) @db.Timestamptz
+  refunded_at    DateTime?          @db.Timestamptz
+
+  @@index([campaign_id])
+  @@index([contributor_id])
+  @@index([status])
+  @@map("contribution")
+}
+
+// §4.12
+model Sample {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id          String   @db.Uuid
+  vendor_name          String   @db.VarChar(200)
+  purchase_date        DateTime @db.Date
+  physical_description String   @db.Text
+  sample_label         String   @db.VarChar(200)
+  target_lab_id        String   @db.Uuid
+  order_index          Int      @default(0)
+  created_at           DateTime @default(now()) @db.Timestamptz
+
+  @@index([campaign_id])
+  @@map("sample")
+}
+
+// §4.13 — Validation rules enforced in service (not DB):
+//   mass → mass_amount and mass_unit non-null; other_description null
+//   other → other_description non-null; mass_amount and mass_unit null
+//   mass_unit must be in valid_mass_units config list
+model SampleClaim {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sample_id         String    @db.Uuid
+  claim_type        ClaimKind
+  mass_amount       Decimal?  @db.Decimal(10, 4)
+  mass_unit         String?   @db.VarChar(20)
+  other_description String?   @db.Text
+
+  @@map("sample_claim")
+}
+
+// §4.14
+model TestRequest {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sample_id String @db.Uuid
+  test_id   String @db.Uuid
+
+  @@unique([sample_id, test_id])
+  @@map("test_request")
+}
+
+// §4.15 — file_url stores S3 object key, NOT a public URL.
+// Pre-signed URLs generated at read time (TTL from S3_SIGNED_URL_TTL_SECONDS).
+model Coa {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sample_id           String             @unique @db.Uuid
+  campaign_id         String             @db.Uuid
+  s3_key              String             @db.Text
+  file_name           String             @db.VarChar(255)
+  file_size_bytes     Int
+  uploaded_by_user_id String             @db.Uuid
+  uploaded_at         DateTime           @default(now()) @db.Timestamptz
+  ocr_text            String?            @db.Text
+  verification_status VerificationStatus @default(pending)
+  verified_by_user_id String?            @db.Uuid
+  verified_at         DateTime?          @db.Timestamptz
+  verification_notes  String?            @db.Text
+
+  @@index([campaign_id])
+  @@index([verification_status])
+  @@map("coa")
+}
+
+// §4.16
+model Lab {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String    @unique @db.VarChar(200)
+  phone_number        String?   @db.VarChar(50)
+  country             String    @db.VarChar(100)
+  address             String?   @db.Text
+  is_approved         Boolean   @default(false)
+  approved_by_user_id String?   @db.Uuid
+  approved_at         DateTime? @db.Timestamptz
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  updated_at          DateTime  @updatedAt @db.Timestamptz
+
+  @@index([is_approved])
+  @@map("lab")
+}
+
+// §4.17 — Test catalog
+model Test {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String   @unique @db.VarChar(200)
+  description        String   @db.Text
+  usp_code           String?  @db.VarChar(50)
+  is_active          Boolean  @default(true)
+  created_by_user_id String   @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz
+
+  @@index([is_active])
+  @@map("test")
+}
+
+// §4.18
+model LabTest {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lab_id                  String   @db.Uuid
+  test_id                 String   @db.Uuid
+  price_usd               Decimal  @db.Decimal(10, 2)
+  typical_turnaround_days Int
+  created_at              DateTime @default(now()) @db.Timestamptz
+  updated_at              DateTime @updatedAt @db.Timestamptz
+
+  @@unique([lab_id, test_id])
+  @@index([lab_id])
+  @@index([test_id])
+  @@map("lab_test")
+}
+
+// §4.19 — Written whenever LabTest.price_usd changes.
+// Previous row's effective_to is set to now(); new row inserted.
+model LabTestPriceHistory {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lab_test_id        String    @db.Uuid
+  price_usd          Decimal   @db.Decimal(10, 2)
+  effective_from     DateTime  @default(now()) @db.Timestamptz
+  effective_to       DateTime? @db.Timestamptz
+  changed_by_user_id String    @db.Uuid
+  change_reason      String?   @db.Text
+
+  @@index([lab_test_id, effective_from])
+  @@map("lab_test_price_history")
+}
+
+// §4.20
+model CampaignUpdate {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id       String     @db.Uuid
+  author_id         String     @db.Uuid
+  content           String     @db.Text
+  update_type       UpdateType
+  state_change_from String?    @db.VarChar(50)
+  state_change_to   String?    @db.VarChar(50)
+  created_at        DateTime   @default(now()) @db.Timestamptz
+
+  @@index([campaign_id, created_at])
+  @@map("campaign_update")
+}
+
+// §4.21
+model Reaction {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id   String       @db.Uuid
+  user_id       String       @db.Uuid
+  reaction_type ReactionType
+  created_at    DateTime     @default(now()) @db.Timestamptz
+
+  @@unique([campaign_id, user_id, reaction_type])
+  @@index([campaign_id])
+  @@map("reaction")
+}
+
+// §4.22
+model Notification {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String           @db.Uuid
+  notification_type NotificationType
+  campaign_id       String           @db.Uuid
+  title             String           @db.VarChar(255)
+  message           String           @db.Text
+  is_read           Boolean          @default(false)
+  sent_email        Boolean          @default(false)
+  created_at        DateTime         @default(now()) @db.Timestamptz
+  read_at           DateTime?        @db.Timestamptz
+
+  @@index([user_id, is_read])
+  @@index([user_id, created_at])
+  @@map("notification")
+}
+
+// §4.23 — Seeded keys: valid_mass_units, global_minimums, platform_fee_percent,
+//   max_campaign_multiplier, auto_flag_threshold_usd, max_withdrawal_per_day, max_file_size_bytes
+model Configuration {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  config_key         String   @unique @db.VarChar(100)
+  config_value       Json
+  description        String   @db.Text
+  updated_at         DateTime @updatedAt @db.Timestamptz
+  updated_by_user_id String?  @db.Uuid
+
+  @@map("configuration")
+}
+
+// §4.24 — Written by AuditService.log(). Fire-and-forget; failure must NOT
+//   roll back the business transaction.
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String?  @db.Uuid
+  action      String   @db.VarChar(100)
+  entity_type String   @db.VarChar(50)
+  entity_id   String   @db.Uuid
+  changes     Json?
+  ip_address  String?  @db.VarChar(45)
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  @@index([entity_type, entity_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("audit_log")
+}
+
+// §7.16 — Email verification tokens.
+// token_hash: SHA-256 hex of raw token. expires_at = now() + 24 hours.
+model EmailVerificationToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token_hash String    @unique @db.VarChar(64)
+  expires_at DateTime  @db.Timestamptz
+  used_at    DateTime? @db.Timestamptz
+  created_at DateTime  @default(now()) @db.Timestamptz
+
+  @@index([user_id])
+  @@map("email_verification_token")
 }

@@ -1,24 +1,30 @@
+import { inject } from 'tsyringe';
 import { Controller, Get, Route, Tags, SuccessResponse } from 'tsoa';
 import type { AppInfoDto } from 'common';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { env } from '../config/env.config';
+import { ConfigurationService, type GlobalMinimumsConfig } from '../services/configuration.service';
 
-@Route('info')
+@Route('app-info')
 @Tags('AppInfo')
 export class AppInfoController extends Controller {
+  constructor(@inject(ConfigurationService) private readonly configService: ConfigurationService) {
+    super();
+  }
+
+  /**
+   * GET /app-info — spec §9.13
+   */
   @Get('/')
   @SuccessResponse('200', 'OK')
-  public getAppInfo(): AppInfoDto {
-    const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
-      name: string;
-      version: string;
-    };
+  public async getAppInfo(): Promise<AppInfoDto> {
+    const minimums = await this.configService.get<GlobalMinimumsConfig>('global_minimums');
 
     return {
-      name: pkg.name,
-      version: pkg.version,
-      environment: env.NODE_ENV,
+      version: env.APP_VERSION,
+      network: env.SOLANA_NETWORK,
+      usdc_mint: env.USDC_MINT,
+      usdt_mint: env.USDT_MINT,
+      minimums,
     };
   }
 }
