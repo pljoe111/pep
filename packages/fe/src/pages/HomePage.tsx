@@ -135,7 +135,7 @@ export function HomePage(): React.ReactElement {
 
         {/* Loading skeleton */}
         {isLoading && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <CampaignCardSkeleton key={i} />
             ))}
@@ -144,7 +144,7 @@ export function HomePage(): React.ReactElement {
 
         {/* Campaign grid */}
         {!isLoading && allCampaigns.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {allCampaigns.map((campaign) => (
               <CampaignCard key={campaign.id} campaign={campaign} />
             ))}
