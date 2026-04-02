@@ -77,6 +77,38 @@ export class SolanaService {
   }
 
   /**
+   * Fetch raw SPL token balances for multiple ATA addresses in a single RPC call.
+   * Batches in chunks of 100 (Solana RPC limit for getMultipleAccounts).
+   * Returns a Map of ataAddress → raw token amount (bigint, 0n if account absent).
+   *
+   * SPL token account layout (165 bytes):
+   *   bytes  0–31 : mint pubkey
+   *   bytes 32–63 : owner pubkey
+   *   bytes 64–71 : amount (u64 little-endian)
+   */
+  async getMultipleTokenBalances(ataAddresses: string[]): Promise<Map<string, bigint>> {
+    const result = new Map<string, bigint>();
+    if (ataAddresses.length === 0) return result;
+
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ataAddresses.length; i += CHUNK_SIZE) {
+      const chunk = ataAddresses.slice(i, i + CHUNK_SIZE);
+      const pubkeys = chunk.map((a) => new PublicKey(a));
+      const accounts = await this.connection.getMultipleAccountsInfo(pubkeys, 'confirmed');
+      for (let j = 0; j < chunk.length; j++) {
+        const acc = accounts[j];
+        if (acc === null || acc.data.length < 72) {
+          result.set(chunk[j], 0n);
+        } else {
+          // amount is a u64 at byte offset 64, read as little-endian BigInt
+          result.set(chunk[j], acc.data.readBigUInt64LE(64));
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
    * Sweep SPL tokens from a deposit address to the master wallet.
    * Deposit keypair signs the transfer; master wallet pays SOL fees.
    * Returns the transaction signature on success.

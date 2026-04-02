@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/ui/Card';
@@ -16,6 +17,8 @@ import {
   useTransactions,
   useWithdraw,
 } from '../api/hooks/useWallet';
+import { queryKeys } from '../api/queryKeys';
+import { appInfoApi } from '../api/apiClient';
 import { formatUSD, formatCrypto, formatDate, truncateAddress } from '../lib/formatters';
 import { isValidSolanaAddress } from '../lib/validators';
 import type { LedgerTransactionDto, TransactionType, TxStatus } from 'api-client';
@@ -110,6 +113,16 @@ export function WalletPage(): React.ReactElement {
   const [txTypeFilter, setTxTypeFilter] = useState('');
   const txPage = 1;
   const [showWithdraw, setShowWithdraw] = useState(false);
+
+  const { data: appInfo } = useQuery({
+    queryKey: queryKeys.appInfo,
+    queryFn: async () => {
+      const res = await appInfoApi.getAppInfo();
+      return res.data;
+    },
+    staleTime: Infinity,
+  });
+  const minWithdrawal = appInfo?.minimums?.min_withdrawal_usd ?? 0.01;
 
   const { data: balance, isLoading: balanceLoading } = useWalletBalance();
   const { data: depositAddress, isLoading: depositLoading } = useDepositAddress();
@@ -228,12 +241,15 @@ export function WalletPage(): React.ReactElement {
                     type="number"
                     inputMode="decimal"
                     step="0.01"
-                    min="5"
+                    min={String(minWithdrawal)}
                     placeholder="0.00"
                     className="w-full rounded-xl border border-border pl-8 pr-4 py-3 text-base text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
                     {...register('amount', {
                       required: 'Amount required',
-                      min: { value: 5, message: 'Minimum $5' },
+                      min: {
+                        value: minWithdrawal,
+                        message: `Minimum $${minWithdrawal.toFixed(2)}`,
+                      },
                     })}
                   />
                 </div>
@@ -262,7 +278,7 @@ export function WalletPage(): React.ReactElement {
                 )}
               </div>
               <p className="text-xs text-text-2">
-                Minimum withdrawal: $5.00 · Sent as USDT on Solana
+                Minimum withdrawal: ${minWithdrawal.toFixed(2)} · Sent as USDT on Solana
               </p>
               <div className="flex gap-2">
                 <Button

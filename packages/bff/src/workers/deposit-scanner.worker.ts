@@ -1,26 +1,27 @@
 /**
- * DepositScannerWorker — scans all deposit addresses for incoming SPL transfers.
+ * DepositScannerWorker — checks SPL token balances on all deposit ATAs each cycle.
  * Spec §7.4. Frequency: 30 seconds, concurrency 1.
  *
- * FIX (mainnet): SPL token transfers go to the Associated Token Account (ATA)
- * of the deposit wallet, NOT to the wallet address itself.
- * We scan the ATA address via getSignaturesForAddress and detect amounts using
- * meta.postTokenBalances - meta.preTokenBalances (works for both outer and
- * inner instruction transfers, no instruction parsing needed).
+ * Strategy (balance-check, not signature-scan):
+ *   1. Derive the USDC and USDT ATA for every deposit address (pure math, no RPC).
+ *   2. Call getMultipleAccountsInfo once per currency — ONE RPC call fetches all
+ *      balances in a batch of up to 100 accounts per request.
+ *   3. For any ATA whose raw balance > 0: sweep to master wallet, then credit
+ *      the user's unified ledger balance using the sweep signature as the
+ *      idempotency key (stored in processedDepositSignature).
  *
  * Option B: credits single unified balance field (currency still recorded on LedgerTransaction).
  */
 import pino from 'pino';
 import { PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { Prisma } from '@prisma/client';
 import { container } from '../container';
 import { depositScannerQueue } from '../utils/queue.util';
 import { PrismaService } from '../services/prisma.service';
 import { SolanaService } from '../services/solana.service';
 import { NotificationService } from '../services/notification.service';
 import { env } from '../config/env.config';
-import { Prisma } from '@prisma/client';
-import { decryptString } from '../utils/crypto.util';
 
 const logger = pino({ name: 'DepositScannerWorker' });
 
@@ -30,6 +31,8 @@ const CURRENCY_MINTS: Record<SupportedCurrency, string> = {
   usdc: env.USDC_MINT,
   usdt: env.USDT_MINT,
 };
+
+const DECIMALS = 6; // both USDC and USDT use 6 decimal places
 
 export function startDepositScannerWorker(): void {
   void depositScannerQueue.add(
@@ -44,137 +47,116 @@ export function startDepositScannerWorker(): void {
 
     const depositAddresses = await prisma.depositAddress.findMany();
     logger.debug({ count: depositAddresses.length }, 'Scanning deposit addresses');
+    if (depositAddresses.length === 0) return;
 
-    for (const depAddr of depositAddresses) {
-      // Scan the ATA for each supported currency separately.
-      // On Solana, SPL transfers go to the ATA, not the wallet address itself.
-      for (const currency of ['usdc', 'usdt'] as const) {
-        const mintAddress = CURRENCY_MINTS[currency];
+    for (const currency of ['usdc', 'usdt'] as const) {
+      const mintAddress = CURRENCY_MINTS[currency];
+      const mintPubkey = new PublicKey(mintAddress);
 
-        try {
-          // Derive the ATA for this currency — wrap PublicKey parse for safety
+      // Derive all ATAs for this currency (pure computation — no RPC calls)
+      const ataAddresses = await Promise.all(
+        depositAddresses.map(async (depAddr) => {
           const ownerPubkey = new PublicKey(depAddr.public_key);
-          const mintPubkey = new PublicKey(mintAddress);
           const ata = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
-          const ataAddress = ata.toBase58();
+          return { ataAddress: ata.toBase58(), depAddr };
+        })
+      );
 
-          // Get recent signatures for the ATA (returns [] if ATA doesn't exist yet)
-          const signatures = await solana.getSignaturesForAddress(ataAddress, 10);
+      // ONE batched RPC call fetches all balances at once
+      const balances = await solana.getMultipleTokenBalances(ataAddresses.map((e) => e.ataAddress));
 
-          for (const sigInfo of signatures) {
-            // --- Idempotency guard ---
-            const already = await prisma.processedDepositSignature.findUnique({
-              where: { signature: sigInfo.signature },
-            });
-            if (already !== null) continue;
+      for (const { ataAddress, depAddr } of ataAddresses) {
+        const rawBalance = balances.get(ataAddress) ?? 0n;
+        if (rawBalance <= 0n) continue;
 
-            // --- Parse transaction ---
-            const parsed = await solana.getParsedTransaction(sigInfo.signature);
-            if (parsed === null) continue;
-
-            // --- Detect incoming amount via token balance diff ---
-            // This works for ALL transfer instruction types (outer, inner, transferChecked, etc.)
-            const preBal = parsed.meta?.preTokenBalances?.find(
-              (tb) => tb.owner === depAddr.public_key && tb.mint === mintAddress
-            );
-            const postBal = parsed.meta?.postTokenBalances?.find(
-              (tb) => tb.owner === depAddr.public_key && tb.mint === mintAddress
-            );
-
-            const preRaw = BigInt(preBal?.uiTokenAmount?.amount ?? '0');
-            const postRaw = BigInt(postBal?.uiTokenAmount?.amount ?? '0');
-            const delta = postRaw - preRaw;
-
-            if (delta <= 0n) continue; // Outgoing or unrelated
-
-            const depositAmount = delta; // raw micro-units
-            const amount = Number(depositAmount) / 1_000_000; // display units
-
-            // --- Sweep to master wallet ---
-            const decryptedKey = decryptString(depAddr.encrypted_private_key);
-            let sweepSignature: string;
-            try {
-              sweepSignature = await solana.sweepDeposit(
-                depAddr.encrypted_private_key,
-                depositAmount,
-                currency
-              );
-            } catch (sweepError: unknown) {
-              const msg = sweepError instanceof Error ? sweepError.message : String(sweepError);
-              logger.error(
-                { error: msg, address: depAddr.public_key, signature: sigInfo.signature, currency },
-                'Sweep failed — will retry next cycle'
-              );
-              void decryptedKey;
-              continue;
-            }
-            void decryptedKey;
-
-            // --- Credit unified ledger balance ---
-            const amountDecimal = new Prisma.Decimal(amount);
-            await prisma.$transaction(async (tx) => {
-              try {
-                await tx.processedDepositSignature.create({
-                  data: {
-                    signature: sigInfo.signature,
-                    deposit_address_public_key: depAddr.public_key,
-                    amount: amountDecimal,
-                    currency,
-                  },
-                });
-              } catch {
-                // Already processed (race) — skip silently
-                return;
-              }
-
-              // Option B: increment single unified balance
-              await tx.ledgerAccount.update({
-                where: { user_id: depAddr.user_id },
-                data: {
-                  balance: { increment: amountDecimal },
-                  lifetime_deposited: { increment: amountDecimal },
-                },
-              });
-
-              await tx.ledgerTransaction.create({
-                data: {
-                  transaction_type: 'deposit',
-                  status: 'completed',
-                  amount: amountDecimal,
-                  currency, // currency still tracked for audit
-                  from_account_type: 'external',
-                  to_account_type: 'user',
-                  to_account_id: depAddr.user_id,
-                  onchain_signature: sweepSignature,
-                },
-              });
-
-              const ledgerAccount = await tx.ledgerAccount.findUnique({
-                where: { user_id: depAddr.user_id },
-              });
-              if (ledgerAccount !== null) {
-                await notif.send(
-                  depAddr.user_id,
-                  'deposit_confirmed',
-                  'system',
-                  'Deposit Received',
-                  `${amount} ${currency.toUpperCase()} has been credited to your balance.`
-                );
-              }
-            });
-
-            logger.info(
-              { address: depAddr.public_key, ataAddress, amount, currency, sweepSignature },
-              'Deposit processed'
-            );
-          }
-        } catch (error: unknown) {
-          const msg = error instanceof Error ? error.message : String(error);
-          logger.error(
-            { error: msg, address: depAddr.public_key, currency },
-            'Error scanning deposit ATA'
+        // Sweep tokens from deposit ATA → master wallet
+        let sweepSignature: string;
+        try {
+          sweepSignature = await solana.sweepDeposit(
+            depAddr.encrypted_private_key,
+            rawBalance,
+            currency
           );
+        } catch (sweepError: unknown) {
+          const msg = sweepError instanceof Error ? sweepError.message : String(sweepError);
+          logger.error(
+            {
+              error: msg,
+              address: depAddr.public_key,
+              ataAddress,
+              currency,
+              rawBalance: rawBalance.toString(),
+            },
+            'Sweep failed — will retry next cycle'
+          );
+          continue;
         }
+
+        // Credit unified ledger balance.
+        // sweepSignature is the idempotency key — if the DB write was already
+        // recorded from a previous (partially-failed) cycle, skip silently.
+        const amount = new Prisma.Decimal(rawBalance.toString()).div(
+          new Prisma.Decimal(10 ** DECIMALS)
+        );
+
+        await prisma.$transaction(
+          async (tx) => {
+            try {
+              await tx.processedDepositSignature.create({
+                data: {
+                  signature: sweepSignature,
+                  deposit_address_public_key: depAddr.public_key,
+                  amount,
+                  currency,
+                },
+              });
+            } catch {
+              // Unique constraint violation — sweep already credited. Skip.
+              return;
+            }
+
+            await tx.ledgerAccount.update({
+              where: { user_id: depAddr.user_id },
+              data: {
+                balance: { increment: amount },
+                lifetime_deposited: { increment: amount },
+              },
+            });
+
+            await tx.ledgerTransaction.create({
+              data: {
+                transaction_type: 'deposit',
+                status: 'completed',
+                amount,
+                currency,
+                from_account_type: 'external',
+                to_account_type: 'user',
+                to_account_id: depAddr.user_id,
+                onchain_signature: sweepSignature,
+              },
+            });
+
+            await notif.send(
+              depAddr.user_id,
+              'deposit_confirmed',
+              'system',
+              'Deposit Received',
+              `${amount.toFixed(2)} ${currency.toUpperCase()} has been credited to your balance.`
+            );
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
+
+        logger.info(
+          {
+            address: depAddr.public_key,
+            ataAddress,
+            amount: amount.toFixed(6),
+            currency,
+            sweepSignature,
+          },
+          'Deposit processed'
+        );
       }
     }
   });
