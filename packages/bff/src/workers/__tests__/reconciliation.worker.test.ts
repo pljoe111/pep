@@ -1,13 +1,12 @@
 /**
  * Reconciliation Worker integration tests — spec §5 (ON-OFF-RAMP-TEST-PLAN.md).
+ * Option B: single unified balance. Compares SUM(all ledger balances) vs. combined on-chain.
  *
- * Strategy (Option A from §7):
+ * Strategy:
  *   - Bull reconciliation queue is mocked; the process() callback is captured.
- *   - SolanaService.getTokenBalance is mocked (on-chain balance supplied via mock).
- *   - EmailService.sendOperatorAlert is mocked — tested for call/no-call.
- *   - PrismaService is real — connects to PostgreSQL `test` database.
- *
- * Tolerance threshold: 0.000001 (1 micro-unit) — defined in reconciliation.worker.ts.
+ *   - SolanaService.getTokenBalance is mocked for both USDC and USDT.
+ *   - EmailService.sendOperatorAlert is mocked.
+ *   - PrismaService is real.
  *
  * All monetary assertions use .toString() — never .toNumber() (coding rules §8.4).
  */
@@ -24,6 +23,7 @@ const mockSolana = {
   getTokenBalance: vi.fn(),
   getTransaction: vi.fn(),
   getSolBalance: vi.fn(),
+  swapUsdcToUsdt: vi.fn(),
 };
 
 const mockEmail = {
@@ -55,7 +55,6 @@ import type { PrismaService } from '../../services/prisma.service';
 // ─── Shared state ─────────────────────────────────────────────────────────────
 let prisma!: PrismaService;
 
-/** All user + escrow row IDs created during a test — cleaned up in afterEach. */
 const createdUserIds: string[] = [];
 const createdCampaignIds: string[] = [];
 
@@ -88,24 +87,22 @@ beforeAll(async () => {
   container.registerInstance(PS, prisma);
 
   const { startReconciliationWorker } = await import('../reconciliation.worker');
-  startReconciliationWorker(); // captures reconcileTick
+  startReconciliationWorker();
 });
 
 afterEach(async () => {
-  // Remove test campaign escrow and campaign rows
   if (createdCampaignIds.length > 0) {
     await prisma.campaignEscrow.deleteMany({ where: { campaign_id: { in: createdCampaignIds } } });
     await prisma.campaign.deleteMany({ where: { id: { in: createdCampaignIds } } });
     createdCampaignIds.length = 0;
   }
-  // Remove test ledger accounts and users
   if (createdUserIds.length > 0) {
     await prisma.ledgerAccount.deleteMany({ where: { user_id: { in: createdUserIds } } });
     await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
     createdUserIds.length = 0;
   }
-  // Reset fee account back to zeroes so tests are independent
-  await prisma.feeAccount.updateMany({ data: { balance_usdc: 0, balance_usdt: 0 } });
+  // Reset fee account back to zero so tests are independent
+  await prisma.feeAccount.updateMany({ data: { balance: 0 } });
 
   vi.clearAllMocks();
   mockEmail.sendOperatorAlert.mockResolvedValue(undefined);
@@ -117,11 +114,8 @@ afterAll(async () => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Creates ledger accounts summing to the requested totals.
- * Each call appends one user with the given balances.
- */
-async function seedLedgerAccount(usdc: number, usdt: number): Promise<void> {
+/** Seeds a ledger account with the given unified balance. */
+async function seedLedgerAccount(balance: number): Promise<void> {
   const user = await prisma.user.create({
     data: {
       email: `recon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`,
@@ -130,17 +124,13 @@ async function seedLedgerAccount(usdc: number, usdt: number): Promise<void> {
     },
   });
   await prisma.ledgerAccount.create({
-    data: { user_id: user.id, balance_usdc: usdc, balance_usdt: usdt },
+    data: { user_id: user.id, balance },
   });
   createdUserIds.push(user.id);
 }
 
-/**
- * Creates a minimal Campaign + CampaignEscrow pair with the given balances.
- * A Campaign row is required due to FK constraints on campaign_escrow.
- */
-async function seedCampaignEscrow(usdc: number, usdt: number): Promise<void> {
-  // We need a creator user for the campaign FK
+/** Seeds a campaign escrow with the given unified balance. */
+async function seedCampaignEscrow(balance: number): Promise<void> {
   const creator = await prisma.user.create({
     data: {
       email: `recon-creator-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`,
@@ -153,7 +143,6 @@ async function seedCampaignEscrow(usdc: number, usdt: number): Promise<void> {
   const campaign = await prisma.campaign.create({
     data: {
       creator_id: creator.id,
-      // verification_code must be unique — use a random large int to avoid collisions
       verification_code: Math.floor(Math.random() * 9_000_000) + 1_000_000,
       title: 'Recon Test Campaign',
       description: 'Reconciliation test data',
@@ -168,47 +157,39 @@ async function seedCampaignEscrow(usdc: number, usdt: number): Promise<void> {
   createdCampaignIds.push(campaign.id);
 
   await prisma.campaignEscrow.create({
-    data: { campaign_id: campaign.id, balance_usdc: usdc, balance_usdt: usdt },
+    data: { campaign_id: campaign.id, balance },
   });
 }
 
-/**
- * Sets the (single) FeeAccount row balances.
- * Creates the row if it does not exist (migration may not have seeded it in test DB).
- */
-async function setFeeBalance(usdc: number, usdt: number): Promise<void> {
+/** Sets the single FeeAccount row's unified balance. */
+async function setFeeBalance(balance: number): Promise<void> {
   const existing = await prisma.feeAccount.findFirst();
   if (existing !== null) {
-    await prisma.feeAccount.update({
-      where: { id: existing.id },
-      data: { balance_usdc: usdc, balance_usdt: usdt },
-    });
+    await prisma.feeAccount.update({ where: { id: existing.id }, data: { balance } });
   } else {
-    await prisma.feeAccount.create({ data: { balance_usdc: usdc, balance_usdt: usdt } });
+    await prisma.feeAccount.create({ data: { balance } });
   }
 }
 
 /**
- * mockSolana.getTokenBalance is called with (masterPubkey, currency).
- * rawUnits = displayUnits * 1_000_000 (matching how SolanaService converts).
+ * Sets mock USDC and USDT on-chain balances.
+ * Internal total should equal usdcDisplay + usdtDisplay for a balanced state.
  */
-function setOnchainBalance(usdcDisplayUnits: number, usdtDisplayUnits: number): void {
+function setOnchainBalance(usdcDisplay: number, usdtDisplay: number): void {
   mockSolana.getTokenBalance.mockImplementation((_addr: string, currency: 'usdc' | 'usdt') =>
-    Promise.resolve(
-      currency === 'usdc' ? usdcDisplayUnits * 1_000_000 : usdtDisplayUnits * 1_000_000
-    )
+    Promise.resolve(currency === 'usdc' ? usdcDisplay * 1_000_000 : usdtDisplay * 1_000_000)
   );
 }
 
 // ─── §5.1 — Balanced state: no alert sent ─────────────────────────────────────
 describe('ReconciliationWorker §5.1 — Balanced state', () => {
-  it('does not call sendOperatorAlert when internal total matches on-chain balance', async () => {
+  it('does not call sendOperatorAlert when internal total matches on-chain combined balance', async () => {
     // Internal: 150 ledger + 50 escrow + 0 fee = 200
-    await seedLedgerAccount(150, 0);
-    await seedCampaignEscrow(50, 0);
-    await setFeeBalance(0, 0);
+    await seedLedgerAccount(150);
+    await seedCampaignEscrow(50);
+    await setFeeBalance(0);
 
-    // On-chain: 200 USDC, 0 USDT
+    // On-chain: 200 total (any split of USDC+USDT)
     setOnchainBalance(200, 0);
 
     await reconcileTick!();
@@ -219,13 +200,13 @@ describe('ReconciliationWorker §5.1 — Balanced state', () => {
 
 // ─── §5.2 — Discrepancy > threshold: operator alert sent ─────────────────────
 describe('ReconciliationWorker §5.2 — Discrepancy over threshold', () => {
-  it('calls sendOperatorAlert exactly once with USDC subject when delta > tolerance', async () => {
-    // Internal: 200 USDC
-    await seedLedgerAccount(150, 0);
-    await seedCampaignEscrow(50, 0);
-    await setFeeBalance(0, 0);
+  it('calls sendOperatorAlert when on-chain total differs from internal total by > tolerance', async () => {
+    // Internal: 200
+    await seedLedgerAccount(150);
+    await seedCampaignEscrow(50);
+    await setFeeBalance(0);
 
-    // On-chain: 201 USDC → delta = 1 > 0.000001
+    // On-chain: 201 → delta = 1 > 0.000001
     setOnchainBalance(201, 0);
 
     await reconcileTick!();
@@ -233,27 +214,25 @@ describe('ReconciliationWorker §5.2 — Discrepancy over threshold', () => {
     expect(mockEmail.sendOperatorAlert).toHaveBeenCalledOnce();
     const [subject, body] = (mockEmail.sendOperatorAlert as ReturnType<typeof vi.fn>).mock
       .calls[0] as [string, string];
-    expect(subject).toContain('USDC');
-    expect(body).toContain('1'); // delta value present in message
+    expect(subject).toContain('Reconciliation');
+    expect(body).toContain('201'); // on-chain total in message
 
     // Worker must NEVER auto-correct — no LedgerAccount mutations
     const acct = await prisma.ledgerAccount.findFirst({
       where: { user_id: { in: createdUserIds } },
     });
-    expect(acct?.balance_usdc.toString()).toBe('150'); // unchanged
+    expect(acct?.balance.toString()).toBe('150'); // unchanged
   });
 });
 
-// ─── §5.3 — Sub-threshold delta: no alert (tolerance = 0.000001) ─────────────
+// ─── §5.3 — Sub-threshold delta: no alert ────────────────────────────────────
 describe('ReconciliationWorker §5.3 — Sub-threshold delta', () => {
   it('does not alert when delta is below the 0.000001 tolerance', async () => {
-    // Internal: 200 USDC
-    await seedLedgerAccount(200, 0);
-    await setFeeBalance(0, 0);
+    // Internal: 200
+    await seedLedgerAccount(200);
+    await setFeeBalance(0);
 
-    // rawBalance = 200.0000005 * 1_000_000 = 200_000_000.5 raw
-    // onchainTotal = 200_000_000.5 / 1_000_000 = 200.0000005
-    // delta = |200 - 200.0000005| = 0.0000005 < 0.000001
+    // On-chain: 200.0000005 → delta 0.0000005 < 0.000001
     setOnchainBalance(200.0000005, 0);
 
     await reconcileTick!();
@@ -262,15 +241,15 @@ describe('ReconciliationWorker §5.3 — Sub-threshold delta', () => {
   });
 });
 
-// ─── §5.4 — USDC and USDT checked independently ───────────────────────────────
-describe('ReconciliationWorker §5.4 — USDC and USDT checked independently', () => {
-  it('alerts once for USDT discrepancy only when USDC is balanced', async () => {
-    // Internal: 100 USDC + 50 USDT
-    await seedLedgerAccount(100, 50);
-    await setFeeBalance(0, 0);
+// ─── §5.4 — Combined on-chain balance check ───────────────────────────────────
+describe('ReconciliationWorker §5.4 — Combined on-chain balance', () => {
+  it('compares internal total against USDC + USDT combined on-chain balance', async () => {
+    // Internal: 150
+    await seedLedgerAccount(150);
+    await setFeeBalance(0);
 
-    // USDC: balanced at 100. USDT: discrepant (55 on-chain vs 50 internal → delta 5)
-    setOnchainBalance(100, 55);
+    // On-chain: 100 USDC + 57 USDT = 157 → delta = |150 - 157| = 7 > threshold
+    setOnchainBalance(100, 57);
 
     await reconcileTick!();
 
@@ -279,18 +258,16 @@ describe('ReconciliationWorker §5.4 — USDC and USDT checked independently', (
       string,
       string,
     ];
-    expect(subject).toContain('USDT');
-    expect(subject).not.toContain('USDC');
+    expect(subject).toContain('Reconciliation');
   });
 });
 
 // ─── §5.5 — Zero balances everywhere: no alert ────────────────────────────────
 describe('ReconciliationWorker §5.5 — Zero balances everywhere', () => {
   it('does not alert when all ledger rows and on-chain balance are zero', async () => {
-    await setFeeBalance(0, 0);
+    await setFeeBalance(0);
     setOnchainBalance(0, 0);
 
-    // No ledger accounts or escrows seeded — aggregate returns null (treated as 0)
     await reconcileTick!();
 
     expect(mockEmail.sendOperatorAlert).not.toHaveBeenCalled();

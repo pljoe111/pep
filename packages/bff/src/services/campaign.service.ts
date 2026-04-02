@@ -442,76 +442,34 @@ export class CampaignService {
           where: { campaign_id: campaignId },
         });
 
-        const escrowUsdc = escrow.balance_usdc;
-        const escrowUsdt = escrow.balance_usdt;
+        // Option B: single unified balance
+        const escrowBalance = escrow.balance;
         const platformFeePercent = campaign.platform_fee_percent;
 
         // Fee calculation — floor (spec §5.4, coding rules §5.5)
-        const feeUsdc = escrowUsdc
+        const fee = escrowBalance
           .mul(platformFeePercent)
           .div(100)
           .toDecimalPlaces(6, Prisma.Decimal.ROUND_DOWN);
-        const payoutUsdc = escrowUsdc.sub(feeUsdc);
+        const payout = escrowBalance.sub(fee);
 
-        const feeUsdt = escrowUsdt
-          .mul(platformFeePercent)
-          .div(100)
-          .toDecimalPlaces(6, Prisma.Decimal.ROUND_DOWN);
-        const payoutUsdt = escrowUsdt.sub(feeUsdt);
-
-        if (payoutUsdc.gt(0)) {
+        if (payout.gt(0)) {
           await tx.ledgerAccount.update({
             where: { user_id: campaign.creator_id },
-            data: { balance_usdc: { increment: payoutUsdc } },
+            data: { balance: { increment: payout } },
           });
           await tx.campaignEscrow.update({
             where: { campaign_id: campaignId },
-            data: { balance_usdc: { decrement: escrowUsdc } },
+            data: { balance: 0 },
           });
           await tx.feeAccount.updateMany({
-            data: { balance_usdc: { increment: feeUsdc } },
+            data: { balance: { increment: fee } },
           });
+          // LedgerTransactions record 'usdt' currency (Option B: always USDT on-chain)
           await tx.ledgerTransaction.create({
             data: {
               transaction_type: 'payout',
-              amount: payoutUsdc,
-              currency: 'usdc',
-              from_account_type: 'campaign',
-              from_account_id: campaignId,
-              to_account_type: 'user',
-              to_account_id: campaign.creator_id,
-              status: 'completed',
-            },
-          });
-          await tx.ledgerTransaction.create({
-            data: {
-              transaction_type: 'fee',
-              amount: feeUsdc,
-              currency: 'usdc',
-              from_account_type: 'campaign',
-              from_account_id: campaignId,
-              to_account_type: 'fee',
-              status: 'completed',
-            },
-          });
-        }
-
-        if (payoutUsdt.gt(0)) {
-          await tx.ledgerAccount.update({
-            where: { user_id: campaign.creator_id },
-            data: { balance_usdt: { increment: payoutUsdt } },
-          });
-          await tx.campaignEscrow.update({
-            where: { campaign_id: campaignId },
-            data: { balance_usdt: { decrement: escrowUsdt } },
-          });
-          await tx.feeAccount.updateMany({
-            data: { balance_usdt: { increment: feeUsdt } },
-          });
-          await tx.ledgerTransaction.create({
-            data: {
-              transaction_type: 'payout',
-              amount: payoutUsdt,
+              amount: payout,
               currency: 'usdt',
               from_account_type: 'campaign',
               from_account_id: campaignId,
@@ -520,17 +478,19 @@ export class CampaignService {
               status: 'completed',
             },
           });
-          await tx.ledgerTransaction.create({
-            data: {
-              transaction_type: 'fee',
-              amount: feeUsdt,
-              currency: 'usdt',
-              from_account_type: 'campaign',
-              from_account_id: campaignId,
-              to_account_type: 'fee',
-              status: 'completed',
-            },
-          });
+          if (fee.gt(0)) {
+            await tx.ledgerTransaction.create({
+              data: {
+                transaction_type: 'fee',
+                amount: fee,
+                currency: 'usdt',
+                from_account_type: 'campaign',
+                from_account_id: campaignId,
+                to_account_type: 'fee',
+                status: 'completed',
+              },
+            });
+          }
         }
 
         await tx.campaign.update({
@@ -585,10 +545,10 @@ export class CampaignService {
         });
 
         for (const contrib of contributions) {
-          const field = contrib.currency === 'usdc' ? 'balance_usdc' : 'balance_usdt';
+          // Option B: single unified balance — refund to balance regardless of original currency
           await tx.ledgerAccount.update({
             where: { user_id: contrib.contributor_id },
-            data: { [field]: { increment: contrib.amount_usd } },
+            data: { balance: { increment: contrib.amount_usd } },
           });
           await tx.contribution.update({
             where: { id: contrib.id },
@@ -611,7 +571,7 @@ export class CampaignService {
 
         await tx.campaignEscrow.update({
           where: { campaign_id: campaignId },
-          data: { balance_usdc: 0, balance_usdt: 0 },
+          data: { balance: 0 },
         });
         await tx.campaign.update({
           where: { id: campaignId },

@@ -6,6 +6,7 @@
   },
   "include": [
     "src",
+    "prisma",
     ".eslintrc.json",
     "vitest.config.ts",
     "vitest.workers.config.ts",

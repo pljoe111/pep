@@ -1,5 +1,6 @@
 /**
  * ContributionService integration tests — spec §7.9.
+ * Option B: single unified balance.
  *
  * Real Postgres (postgresql://postgres:password@localhost:5432/test).
  * Mocks: queue.util (Bull/Redis), NotificationService, AuditService, ConfigurationService.
@@ -129,6 +130,7 @@ async function seedUser(opts?: { banned?: boolean; unverified?: boolean }): Prom
       is_banned: opts?.banned === true,
     },
   });
+  // Option B: single balance field
   await prisma.ledgerAccount.create({ data: { user_id: u.id } });
   createdUserIds.push(u.id);
   return u.id;
@@ -165,12 +167,13 @@ async function seedCampaign(
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ContributionService.contribute', () => {
-  it('debits user balance, credits escrow, persists contribution and ledger tx for USDC', async () => {
+  it('debits user balance, credits escrow balance, persists contribution and ledger tx', async () => {
     const creatorId = await seedUser();
     const contributorId = await seedUser();
+    // Option B: single balance field
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdc: 200 },
+      data: { balance: 200 },
     });
     const campaignId = await seedCampaign(creatorId, 500);
 
@@ -181,14 +184,13 @@ describe('ContributionService.contribute', () => {
     const account = await prisma.ledgerAccount.findUniqueOrThrow({
       where: { user_id: contributorId },
     });
-    expect(account.balance_usdc.toString()).toBe('125');
+    expect(account.balance.toString()).toBe('125');
 
-    // Assert escrow credited (only USDC field changes)
+    // Assert escrow credited (single balance)
     const escrow = await prisma.campaignEscrow.findUniqueOrThrow({
       where: { campaign_id: campaignId },
     });
-    expect(escrow.balance_usdc.toString()).toBe('75');
-    expect(escrow.balance_usdt.toString()).toBe('0');
+    expect(escrow.balance.toString()).toBe('75');
 
     // Assert campaign current_funding_usd updated
     const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
@@ -200,7 +202,7 @@ describe('ContributionService.contribute', () => {
     });
     expect(contributions).toHaveLength(1);
     expect(contributions[0].amount_usd.toString()).toBe('75');
-    expect(contributions[0].currency).toBe('usdc');
+    expect(contributions[0].currency).toBe('usdc'); // currency still recorded
     expect(contributions[0].status).toBe('completed');
     expect(contributions[0].contributor_id).toBe(contributorId);
 
@@ -210,7 +212,7 @@ describe('ContributionService.contribute', () => {
     });
     expect(txns).toHaveLength(1);
     expect(txns[0].amount.toString()).toBe('75');
-    expect(txns[0].currency).toBe('usdc');
+    expect(txns[0].currency).toBe('usdc'); // currency still tracked on LedgerTransaction
     expect(txns[0].from_account_type).toBe('user');
     expect(txns[0].from_account_id).toBe(contributorId);
     expect(txns[0].to_account_type).toBe('campaign');
@@ -218,12 +220,12 @@ describe('ContributionService.contribute', () => {
     expect(txns[0].status).toBe('completed');
   });
 
-  it('debits user USDT balance and credits USDT escrow field', async () => {
+  it('debits user balance and credits escrow for USDT contribution', async () => {
     const creatorId = await seedUser();
     const contributorId = await seedUser();
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdt: 100 },
+      data: { balance: 100 },
     });
     const campaignId = await seedCampaign(creatorId, 500);
 
@@ -233,20 +235,18 @@ describe('ContributionService.contribute', () => {
     const account = await prisma.ledgerAccount.findUniqueOrThrow({
       where: { user_id: contributorId },
     });
-    expect(account.balance_usdt.toString()).toBe('60');
-    expect(account.balance_usdc.toString()).toBe('0'); // USDC untouched
+    expect(account.balance.toString()).toBe('60');
 
     const escrow = await prisma.campaignEscrow.findUniqueOrThrow({
       where: { campaign_id: campaignId },
     });
-    expect(escrow.balance_usdt.toString()).toBe('40');
-    expect(escrow.balance_usdc.toString()).toBe('0'); // USDC untouched
+    expect(escrow.balance.toString()).toBe('40');
 
     const contributions = await prisma.contribution.findMany({
       where: { campaign_id: campaignId },
     });
     expect(contributions).toHaveLength(1);
-    expect(contributions[0].currency).toBe('usdt');
+    expect(contributions[0].currency).toBe('usdt'); // currency still recorded
     expect(contributions[0].amount_usd.toString()).toBe('40');
   });
 
@@ -255,7 +255,7 @@ describe('ContributionService.contribute', () => {
     const contributorId = await seedUser();
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdc: 50 },
+      data: { balance: 50 },
     });
     // Threshold = 100; seed campaign with current_funding = 90 (just below threshold)
     const campaignId = await seedCampaign(creatorId, 100);
@@ -265,7 +265,7 @@ describe('ContributionService.contribute', () => {
     });
     await prisma.campaignEscrow.update({
       where: { campaign_id: campaignId },
-      data: { balance_usdc: 90 },
+      data: { balance: 90 },
     });
     // Seed an existing contribution row representing the 90 already in escrow
     await prisma.contribution.create({
@@ -278,7 +278,7 @@ describe('ContributionService.contribute', () => {
       },
     });
 
-    // This 20-USDC contribution pushes current_funding to 110 ≥ threshold 100
+    // This 20-contribution pushes current_funding to 110 ≥ threshold 100
     const dto: ContributeDto = { amount: 20, currency: 'usdc' };
     await service.contribute(contributorId, campaignId, dto, true, false);
 
@@ -322,7 +322,7 @@ describe('ContributionService.contribute', () => {
     const creatorId = await seedUser();
     await prisma.ledgerAccount.update({
       where: { user_id: creatorId },
-      data: { balance_usdc: 100 },
+      data: { balance: 100 },
     });
     const campaignId = await seedCampaign(creatorId, 500);
 
@@ -337,7 +337,7 @@ describe('ContributionService.contribute', () => {
     const contributorId = await seedUser();
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdc: 100 },
+      data: { balance: 100 },
     });
     // Campaign in 'resolved' status — closed to contributions
     const campaignId = await seedCampaign(creatorId, 500, 'resolved');
@@ -353,7 +353,7 @@ describe('ContributionService.contribute', () => {
     const contributorId = await seedUser();
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdc: 100 },
+      data: { balance: 100 },
     });
     const campaignId = await seedCampaign(creatorId, 500);
 
@@ -370,7 +370,7 @@ describe('ContributionService.contribute', () => {
     // Balance = 5; attempting to contribute 20
     await prisma.ledgerAccount.update({
       where: { user_id: contributorId },
-      data: { balance_usdc: 5 },
+      data: { balance: 5 },
     });
     const campaignId = await seedCampaign(creatorId, 500);
 

@@ -1,6 +1,7 @@
 /**
  * WalletService — balance, deposit address, withdrawals, transaction history.
  * Implements spec §7.5 (withdrawal flow) and §9.2.
+ * Option B: single unified balance. Withdrawals are always sent as USDT on-chain.
  */
 import { injectable, inject } from 'tsyringe';
 import { PublicKey } from '@solana/web3.js';
@@ -42,10 +43,7 @@ export class WalletService {
       where: { user_id: userId },
     });
     if (account === null) throw new NotFoundError('Ledger account not found');
-    return {
-      balance_usdc: Number(account.balance_usdc),
-      balance_usdt: Number(account.balance_usdt),
-    };
+    return { balance: Number(account.balance) };
   }
 
   async getDepositAddress(userId: string): Promise<DepositAddressDto> {
@@ -109,8 +107,7 @@ export class WalletService {
     });
     if (account === null) throw new NotFoundError('Ledger account not found');
 
-    const currencyField = dto.currency === 'usdc' ? 'balance_usdc' : 'balance_usdt';
-    if (Number(account[currencyField]) < dto.amount) {
+    if (Number(account.balance) < dto.amount) {
       throw new InsufficientBalanceError('Insufficient balance');
     }
 
@@ -124,38 +121,28 @@ export class WalletService {
           where: { user_id: userId },
         });
 
-        const currentBalance = Number(locked[currencyField]);
-        if (currentBalance < dto.amount) {
+        if (Number(locked.balance) < dto.amount) {
           throw new InsufficientBalanceError('Insufficient balance');
         }
 
         const amountDecimal = new Prisma.Decimal(dto.amount);
 
         // Debit first (coding rules §5.2)
-        if (dto.currency === 'usdc') {
-          await tx.ledgerAccount.update({
-            where: { user_id: userId },
-            data: {
-              balance_usdc: { decrement: amountDecimal },
-              lifetime_withdrawn_usdc: { increment: amountDecimal },
-            },
-          });
-        } else {
-          await tx.ledgerAccount.update({
-            where: { user_id: userId },
-            data: {
-              balance_usdt: { decrement: amountDecimal },
-              lifetime_withdrawn_usdt: { increment: amountDecimal },
-            },
-          });
-        }
+        await tx.ledgerAccount.update({
+          where: { user_id: userId },
+          data: {
+            balance: { decrement: amountDecimal },
+            lifetime_withdrawn: { increment: amountDecimal },
+          },
+        });
 
+        // Always record as USDT — withdrawals are sent as USDT on-chain (Option B)
         const ledgerTx = await tx.ledgerTransaction.create({
           data: {
             transaction_type: 'withdrawal',
             status: 'pending',
             amount: amountDecimal,
-            currency: dto.currency,
+            currency: 'usdt',
             from_account_type: 'user',
             from_account_id: userId,
             to_account_type: 'external',
@@ -176,14 +163,11 @@ export class WalletService {
       action: 'ledger.withdrawal_requested',
       entityType: 'ledger_account',
       entityId: userId,
-      changes: { amount: dto.amount, currency: dto.currency, destination: dto.destination_address },
+      changes: { amount: dto.amount, destination: dto.destination_address },
       ipAddress,
     });
 
-    logger.info(
-      { userId, ledgerTxId, amount: dto.amount, currency: dto.currency },
-      'Withdrawal requested'
-    );
+    logger.info({ userId, ledgerTxId, amount: dto.amount }, 'Withdrawal requested');
 
     return { ledger_transaction_id: ledgerTxId, status: 'pending' };
   }

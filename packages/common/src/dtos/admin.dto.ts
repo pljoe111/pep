@@ -68,3 +68,8 @@ export interface ConfigurationDto {
 export interface FeeSweepResponseDto {
   ledger_transaction_id: string;
 }
+
+export interface ConsolidationResponseDto {
+  triggered: boolean;
+  message: string;
+}

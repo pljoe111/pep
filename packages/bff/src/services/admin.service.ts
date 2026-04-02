@@ -203,25 +203,22 @@ export class AdminService {
         const feeAccount = await tx.feeAccount.findFirst();
         if (feeAccount === null) throw new NotFoundError('Fee account not found');
 
-        const balance = dto.currency === 'usdc' ? feeAccount.balance_usdc : feeAccount.balance_usdt;
+        // Option B: single unified balance
+        const balance = feeAccount.balance;
 
         if (balance.isZero()) {
           throw new ConflictError('No fees to sweep');
         }
 
         // Zero out fee account balance
-        if (dto.currency === 'usdc') {
-          await tx.feeAccount.update({ where: { id: feeAccount.id }, data: { balance_usdc: 0 } });
-        } else {
-          await tx.feeAccount.update({ where: { id: feeAccount.id }, data: { balance_usdt: 0 } });
-        }
+        await tx.feeAccount.update({ where: { id: feeAccount.id }, data: { balance: 0 } });
 
         const ledgerTx = await tx.ledgerTransaction.create({
           data: {
             transaction_type: 'withdrawal',
             status: 'pending',
             amount: balance,
-            currency: dto.currency,
+            currency: 'usdt', // Option B: always USDT on-chain
             from_account_type: 'fee',
             to_account_type: 'external',
             external_address: dto.destination_address,
@@ -240,7 +237,7 @@ export class AdminService {
       action: 'fee.swept',
       entityType: 'fee_account',
       entityId: adminUserId,
-      changes: { currency: dto.currency, destination: dto.destination_address },
+      changes: { destination: dto.destination_address },
     });
 
     return { ledger_transaction_id: ledgerTxId };

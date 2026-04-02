@@ -25,6 +25,7 @@ import { CoaService } from './services/coa.service';
 import { CampaignService } from './services/campaign.service';
 import { EmailService } from './services/email.service';
 import { AdminService } from './services/admin.service';
+import { ConsolidationService } from './workers/consolidation.worker';
 
 container.registerSingleton(PrismaService);
 container.registerSingleton(AuditService);
@@ -44,6 +45,7 @@ container.registerSingleton(CoaService);
 container.registerSingleton(CampaignService);
 container.registerSingleton(EmailService);
 container.registerSingleton(AdminService);
+container.registerSingleton(ConsolidationService);
 
 // ─── Workers & Jobs ───────────────────────────────────────────────────────────
 // Only started in production/development (not during test runs or tsc type checking)

@@ -83,6 +83,10 @@ export const env = cleanEnv(process.env, {
   EMAIL_FROM: str({ default: 'noreply@peptest.com' }),
   OPERATOR_ALERT_EMAIL: str({ default: 'ops@peptest.com' }),
 
+  // ─── Consolidation (USDC → USDT swap via Jupiter) ─────────────────────────
+  /** Minimum USDC display-unit balance on master wallet before auto-consolidation triggers */
+  CONSOLIDATION_THRESHOLD_USDC: num({ default: 100 }),
+
   // ─── Test only ─────────────────────────────────────────────────────────────
   TEST_MASTER_WALLET_PUBKEY: str({ default: '' }),
   TEST_MASTER_WALLET_KEY: str({ default: '' }),

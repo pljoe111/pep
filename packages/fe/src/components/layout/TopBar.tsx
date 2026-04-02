@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar } from '../ui/Avatar';
 import { queryKeys } from '../../api/queryKeys';
-import { notificationsApi } from '../../api/apiClient';
+import { notificationsApi, appInfoApi } from '../../api/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 
 function BellIcon({ count }: { count: number }): React.ReactElement {
@@ -32,6 +32,59 @@ function BellIcon({ count }: { count: number }): React.ReactElement {
   );
 }
 
+/** Maps Solana network name → label + Tailwind classes */
+function networkStyle(network: string): { label: string; className: string } {
+  switch (network) {
+    case 'mainnet-beta':
+      return {
+        label: '🟢 Mainnet',
+        className:
+          'bg-green-100 text-black-800 border border-green-300 dark:bg-green-900/30 dark:text-black-300',
+      };
+    case 'devnet':
+      return {
+        label: '🟡 Devnet',
+        className:
+          'bg-amber-100 text-black-800 border border-amber-300 dark:bg-amber-900/30 dark:text-black-300',
+      };
+    case 'testnet':
+      return {
+        label: '🔵 Testnet',
+        className:
+          'bg-blue-100 text-black-800 border border-blue-300 dark:bg-blue-900/30 dark:text-black-300',
+      };
+    default:
+      return {
+        label: `⚪ ${network}`,
+        className: 'bg-stone-100 text-stone-600 border border-stone-300',
+      };
+  }
+}
+
+function NetworkBadge(): React.ReactElement | null {
+  const { data: appInfo } = useQuery({
+    queryKey: queryKeys.appInfo,
+    queryFn: async () => {
+      const res = await appInfoApi.getAppInfo();
+      return res.data;
+    },
+    staleTime: Infinity, // Network never changes at runtime
+  });
+
+  if (!appInfo) return null;
+
+  const { label, className } = networkStyle(appInfo.network);
+
+  return (
+    <span
+      className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${className}`}
+      title={`Solana network: ${appInfo.network}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function TopBar(): React.ReactElement {
   const { user, isAuthenticated } = useAuth();
 
@@ -42,7 +95,7 @@ export function TopBar(): React.ReactElement {
       return res.data;
     },
     enabled: isAuthenticated,
-    refetchInterval: 30_000, // Poll every 30 seconds
+    refetchInterval: 30_000,
     staleTime: 15_000,
   });
 
@@ -52,15 +105,18 @@ export function TopBar(): React.ReactElement {
     <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-2xl mx-auto px-4 md:max-w-5xl flex items-center justify-between h-14">
         {/* Logo / Brand */}
-        <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-          <span
-            aria-hidden="true"
-            className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-sm"
-          >
-            PL
-          </span>
-          <span>PepLab</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
+            <span
+              aria-hidden="true"
+              className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-sm"
+            >
+              PL
+            </span>
+            <span>PepLab</span>
+          </Link>
+          <NetworkBadge />
+        </div>
 
         {/* Right actions */}
         <div className="flex items-center gap-2">

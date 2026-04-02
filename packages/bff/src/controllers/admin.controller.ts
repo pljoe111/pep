@@ -16,11 +16,13 @@ import {
   Query,
 } from 'tsoa';
 import { AdminService } from '../services/admin.service';
+import { ConsolidationService } from '../workers/consolidation.worker';
 import type {
   CampaignDetailDto,
   UserDto,
   ConfigurationDto,
   FeeSweepResponseDto,
+  ConsolidationResponseDto,
   CoaDto,
   AdminRefundDto,
   AdminHideCampaignDto,
@@ -37,7 +39,11 @@ import type { AuthRequest } from '../middleware/auth.middleware';
 @Tags('Admin')
 @Security('jwt')
 export class AdminController extends Controller {
-  constructor(@inject(AdminService) private readonly adminService: AdminService) {
+  constructor(
+    @inject(AdminService) private readonly adminService: AdminService,
+    @inject(ConsolidationService)
+    private readonly consolidationService: ConsolidationService
+  ) {
     super();
   }
 
@@ -139,5 +145,19 @@ export class AdminController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.adminService.sweepFees(user.userId, body);
+  }
+
+  /**
+   * POST /admin/consolidate — swap USDC → USDT on master wallet via Jupiter.
+   * Only executes if USDC balance >= CONSOLIDATION_THRESHOLD_USDC.
+   * Requires admin claim.
+   */
+  @Post('consolidate')
+  public async triggerConsolidation(
+    @Request() req: AuthRequest
+  ): Promise<ConsolidationResponseDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.consolidationService.consolidate(user.userId);
   }
 }

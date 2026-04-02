@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
 
 // ─── String literal types mirroring Prisma enums ─────────────────────────────
 
@@ -20,9 +20,6 @@ export class WithdrawDto {
   @Min(0.000001)
   amount!: number;
 
-  @IsEnum(['usdc', 'usdt'] as const)
-  currency!: Currency;
-
   @IsString()
   @IsNotEmpty()
   destination_address!: string;
@@ -31,8 +28,7 @@ export class WithdrawDto {
 // ─── Response DTOs ────────────────────────────────────────────────────────────
 
 export interface WalletBalanceDto {
-  balance_usdc: number;
-  balance_usdt: number;
+  balance: number;
 }
 
 export interface DepositAddressDto {

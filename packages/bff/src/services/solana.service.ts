@@ -12,6 +12,7 @@ import {
   Keypair,
   PublicKey,
   Transaction,
+  VersionedTransaction,
   LAMPORTS_PER_SOL,
   type ConfirmedSignatureInfo,
   type ParsedTransactionWithMeta,
@@ -205,5 +206,53 @@ export class SolanaService {
   async getSolBalance(address: string): Promise<number> {
     const lamports = await this.connection.getBalance(new PublicKey(address));
     return lamports / LAMPORTS_PER_SOL;
+  }
+
+  /**
+   * Swap USDC → USDT on the master wallet via Jupiter v6 API.
+   * Used by ConsolidationService. On-chain signature returned on success.
+   * Throws on any API or transaction failure.
+   */
+  async swapUsdcToUsdt(amountRaw: bigint): Promise<string> {
+    const quoteParams = new URLSearchParams({
+      inputMint: env.USDC_MINT,
+      outputMint: env.USDT_MINT,
+      amount: amountRaw.toString(),
+      slippageBps: '50',
+    });
+
+    const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?${quoteParams.toString()}`);
+    if (!quoteRes.ok) {
+      throw new Error(`Jupiter quote request failed: ${quoteRes.status} ${quoteRes.statusText}`);
+    }
+    const quoteData: unknown = await quoteRes.json();
+
+    const swapRes = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quoteResponse: quoteData,
+        userPublicKey: this.masterKeypair.publicKey.toBase58(),
+        wrapAndUnwrapSol: false,
+      }),
+    });
+    if (!swapRes.ok) {
+      throw new Error(
+        `Jupiter swap transaction request failed: ${swapRes.status} ${swapRes.statusText}`
+      );
+    }
+
+    const swapData = (await swapRes.json()) as { swapTransaction: string };
+    const transactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
+    const transaction = VersionedTransaction.deserialize(transactionBuf);
+    transaction.sign([this.masterKeypair]);
+
+    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+    });
+    await this.connection.confirmTransaction(signature, 'confirmed');
+
+    logger.info({ amountRaw: amountRaw.toString(), signature }, 'USDC→USDT Jupiter swap confirmed');
+    return signature;
   }
 }

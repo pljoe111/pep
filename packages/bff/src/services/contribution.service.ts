@@ -63,13 +63,11 @@ export class ContributionService {
       );
     }
 
-    // Check balance before transaction
+    // Check balance before transaction (Option B: single unified balance)
     const account = await this.prisma.ledgerAccount.findUnique({ where: { user_id: userId } });
     if (account === null) throw new NotFoundError('Ledger account not found');
 
-    const currencyBalance =
-      dto.currency === 'usdc' ? Number(account.balance_usdc) : Number(account.balance_usdt);
-    if (currencyBalance < dto.amount) {
+    if (Number(account.balance) < dto.amount) {
       throw new InsufficientBalanceError('Insufficient balance');
     }
 
@@ -85,40 +83,21 @@ export class ContributionService {
           where: { user_id: userId },
         });
 
-        const currentBalance =
-          dto.currency === 'usdc'
-            ? Number(lockedAccount.balance_usdc)
-            : Number(lockedAccount.balance_usdt);
-
-        if (currentBalance < dto.amount) {
+        if (Number(lockedAccount.balance) < dto.amount) {
           throw new InsufficientBalanceError('Insufficient balance');
         }
 
         // 2. Debit user (coding rules §5.2 — debit before credit)
-        if (dto.currency === 'usdc') {
-          await tx.ledgerAccount.update({
-            where: { user_id: userId },
-            data: { balance_usdc: { decrement: amountDecimal } },
-          });
-        } else {
-          await tx.ledgerAccount.update({
-            where: { user_id: userId },
-            data: { balance_usdt: { decrement: amountDecimal } },
-          });
-        }
+        await tx.ledgerAccount.update({
+          where: { user_id: userId },
+          data: { balance: { decrement: amountDecimal } },
+        });
 
         // 3. Credit campaign escrow
-        if (dto.currency === 'usdc') {
-          await tx.campaignEscrow.update({
-            where: { campaign_id: campaignId },
-            data: { balance_usdc: { increment: amountDecimal } },
-          });
-        } else {
-          await tx.campaignEscrow.update({
-            where: { campaign_id: campaignId },
-            data: { balance_usdt: { increment: amountDecimal } },
-          });
-        }
+        await tx.campaignEscrow.update({
+          where: { campaign_id: campaignId },
+          data: { balance: { increment: amountDecimal } },
+        });
 
         // 4. Update campaign current funding
         const updated = await tx.campaign.update({

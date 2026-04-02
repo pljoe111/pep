@@ -2,6 +2,7 @@
  * WithdrawalWorker — processes withdrawal jobs from the withdrawal queue.
  * Concurrency: 1. Timeout: 90s. Retries: 2 (then restore balance).
  * Implements spec §7.5.1.
+ * Option B: rollback restores single unified balance; always sends USDT on-chain.
  *
  * SECURITY: MASTER_WALLET_PRIVATE_KEY is accessed here via SolanaService.
  * Coding rules §8.3.
@@ -13,6 +14,7 @@ import { PrismaService } from '../services/prisma.service';
 import { SolanaService } from '../services/solana.service';
 import { NotificationService } from '../services/notification.service';
 import { Prisma } from '@prisma/client';
+import { env } from '../config/env.config';
 
 const logger = pino({ name: 'WithdrawalWorker' });
 
@@ -56,15 +58,14 @@ export function startWithdrawalWorker(): void {
     const amount = BigInt(Math.round(Number(ledgerTx.amount) * 1_000_000));
 
     try {
-      const signature = await solana.executeWithdrawal(
-        destinationAddress,
-        amount,
-        ledgerTx.currency
-      );
+      // Option B: always send as USDT on-chain (env.USDT_MINT is the on-chain token)
+      // SolanaService.executeWithdrawal accepts 'usdc' | 'usdt' — pass 'usdt' always.
+      void env.USDT_MINT; // assert env is loaded
+      const signature = await solana.executeWithdrawal(destinationAddress, amount, 'usdt');
 
       await prisma.ledgerTransaction.update({
         where: { id: ledger_transaction_id },
-        data: { status: 'confirmed', onchain_signature: signature },
+        data: { status: 'confirmed', onchain_signature: signature, currency: 'usdt' },
       });
 
       // Notify user if from_account_id is set (not fee sweep)
@@ -107,25 +108,15 @@ export function startWithdrawalWorker(): void {
 
       await prisma.$transaction(
         async (tx) => {
-          // Restore balance
+          // Option B: restore single unified balance
           if (ledgerTx.from_account_id !== null) {
-            if (ledgerTx.currency === 'usdc') {
-              await tx.ledgerAccount.update({
-                where: { user_id: ledgerTx.from_account_id },
-                data: {
-                  balance_usdc: { increment: ledgerTx.amount },
-                  lifetime_withdrawn_usdc: { decrement: ledgerTx.amount },
-                },
-              });
-            } else {
-              await tx.ledgerAccount.update({
-                where: { user_id: ledgerTx.from_account_id },
-                data: {
-                  balance_usdt: { increment: ledgerTx.amount },
-                  lifetime_withdrawn_usdt: { decrement: ledgerTx.amount },
-                },
-              });
-            }
+            await tx.ledgerAccount.update({
+              where: { user_id: ledgerTx.from_account_id },
+              data: {
+                balance: { increment: ledgerTx.amount },
+                lifetime_withdrawn: { decrement: ledgerTx.amount },
+              },
+            });
           }
           await tx.ledgerTransaction.update({
             where: { id: ledger_transaction_id },

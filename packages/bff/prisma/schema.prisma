@@ -151,20 +151,16 @@ model RefreshToken {
 }
 
 // §4.4 — One row per user. Source of truth for spendable balance.
-// DB check constraints added via raw SQL migration:
-//   ALTER TABLE ledger_account ADD CONSTRAINT balance_usdc_non_negative CHECK (balance_usdc >= 0);
-//   ALTER TABLE ledger_account ADD CONSTRAINT balance_usdt_non_negative CHECK (balance_usdt >= 0);
+// Unified single-currency balance (Option B). On-chain: always USDT.
+// DB check constraint: CHECK (balance >= 0) added in migration 20260402_option_b_single_balance.
 model LedgerAccount {
-  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                 String   @unique @db.Uuid
-  balance_usdc            Decimal  @default(0) @db.Decimal(18, 6)
-  balance_usdt            Decimal  @default(0) @db.Decimal(18, 6)
-  lifetime_deposited_usdc Decimal  @default(0) @db.Decimal(18, 6)
-  lifetime_deposited_usdt Decimal  @default(0) @db.Decimal(18, 6)
-  lifetime_withdrawn_usdc Decimal  @default(0) @db.Decimal(18, 6)
-  lifetime_withdrawn_usdt Decimal  @default(0) @db.Decimal(18, 6)
-  created_at              DateTime @default(now()) @db.Timestamptz
-  updated_at              DateTime @updatedAt @db.Timestamptz
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String   @unique @db.Uuid
+  balance            Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_deposited Decimal  @default(0) @db.Decimal(18, 6)
+  lifetime_withdrawn Decimal  @default(0) @db.Decimal(18, 6)
+  created_at         DateTime @default(now()) @db.Timestamptz
+  updated_at         DateTime @updatedAt @db.Timestamptz
 
   @@map("ledger_account")
 }
@@ -236,26 +232,22 @@ model Campaign {
 }
 
 // §4.8 — One per campaign. Internal balance only — no on-chain wallet.
-// DB check constraints:
-//   ALTER TABLE campaign_escrow ADD CONSTRAINT escrow_usdc_non_negative CHECK (balance_usdc >= 0);
-//   ALTER TABLE campaign_escrow ADD CONSTRAINT escrow_usdt_non_negative CHECK (balance_usdt >= 0);
+// DB check constraint: CHECK (balance >= 0) added in migration 20260402_option_b_single_balance.
 model CampaignEscrow {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaign_id  String   @unique @db.Uuid
-  balance_usdc Decimal  @default(0) @db.Decimal(18, 6)
-  balance_usdt Decimal  @default(0) @db.Decimal(18, 6)
-  created_at   DateTime @default(now()) @db.Timestamptz
-  updated_at   DateTime @updatedAt @db.Timestamptz
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id String   @unique @db.Uuid
+  balance     Decimal  @default(0) @db.Decimal(18, 6)
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
 
   @@map("campaign_escrow")
 }
 
 // §4.9 — Exactly one row, seeded at migration time. Never insert a second row.
 model FeeAccount {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  balance_usdc Decimal  @default(0) @db.Decimal(18, 6)
-  balance_usdt Decimal  @default(0) @db.Decimal(18, 6)
-  updated_at   DateTime @updatedAt @db.Timestamptz
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  balance    Decimal  @default(0) @db.Decimal(18, 6)
+  updated_at DateTime @updatedAt @db.Timestamptz
 
   @@map("fee_account")
 }

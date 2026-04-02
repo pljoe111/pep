@@ -58,7 +58,8 @@ function ContributeSheet({
   const { mutateAsync: contribute, isPending } = useContribute(campaignId);
   const toast = useToast();
 
-  const currentBalance = currency === 'usdc' ? balance?.balance_usdc : balance?.balance_usdt;
+  // Option B: unified single balance — currency is still tracked on the contribution record
+  const currentBalance = balance?.balance;
 
   const handleSubmit = async (): Promise<void> => {
     const parsedAmount = parseFloat(amount);

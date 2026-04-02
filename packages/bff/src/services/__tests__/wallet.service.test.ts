@@ -1,8 +1,9 @@
 /**
  * WalletService integration tests — spec §7.5, §9.2.
+ * Option B: single unified balance. Withdrawals always sent as USDT on-chain.
  *
  * Covers:
- *   - requestWithdrawal: balance debit, lifetime_withdrawn update, pending ledger tx, queue enqueue
+ *   - requestWithdrawal: balance debit, lifetime_withdrawn update, pending USDT ledger tx, queue enqueue
  *   - Rate limiting: rolling 24h withdrawal count (spec §5.5)
  *   - All guard violations: banned, unverified, invalid address, below minimum, insufficient balance
  *
@@ -110,8 +111,7 @@ afterAll(async () => {
 async function seedUser(opts?: {
   banned?: boolean;
   unverified?: boolean;
-  usdcBalance?: number;
-  usdtBalance?: number;
+  balance?: number;
 }): Promise<string> {
   const u = await prisma.user.create({
     data: {
@@ -124,8 +124,7 @@ async function seedUser(opts?: {
   await prisma.ledgerAccount.create({
     data: {
       user_id: u.id,
-      balance_usdc: opts?.usdcBalance ?? 0,
-      balance_usdt: opts?.usdtBalance ?? 0,
+      balance: opts?.balance ?? 0,
     },
   });
   createdUserIds.push(u.id);
@@ -135,12 +134,11 @@ async function seedUser(opts?: {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('WalletService.requestWithdrawal', () => {
-  it('debits USDC balance, updates lifetime_withdrawn, creates pending ledger tx', async () => {
-    const userId = await seedUser({ usdcBalance: 100 });
+  it('debits balance, updates lifetime_withdrawn, creates pending USDT ledger tx', async () => {
+    const userId = await seedUser({ balance: 100 });
 
     const dto: WithdrawDto = {
       amount: 50,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     const result = await service.requestWithdrawal(userId, dto, true, false);
@@ -151,50 +149,25 @@ describe('WalletService.requestWithdrawal', () => {
 
     // DB: balance debited and lifetime_withdrawn incremented
     const account = await prisma.ledgerAccount.findUniqueOrThrow({ where: { user_id: userId } });
-    expect(account.balance_usdc.toString()).toBe('50');
-    expect(account.lifetime_withdrawn_usdc.toString()).toBe('50');
+    expect(account.balance.toString()).toBe('50');
+    expect(account.lifetime_withdrawn.toString()).toBe('50');
 
-    // DB: pending ledger transaction persisted
+    // DB: pending USDT ledger transaction persisted (Option B: always USDT)
     const tx = await prisma.ledgerTransaction.findUniqueOrThrow({
       where: { id: result.ledger_transaction_id },
     });
     expect(tx.transaction_type).toBe('withdrawal');
     expect(tx.status).toBe('pending');
     expect(tx.amount.toString()).toBe('50');
-    expect(tx.currency).toBe('usdc');
+    expect(tx.currency).toBe('usdt'); // Option B: always USDT
     expect(tx.from_account_type).toBe('user');
     expect(tx.from_account_id).toBe(userId);
     expect(tx.to_account_type).toBe('external');
     expect(tx.external_address).toBe(VALID_SOLANA_ADDR);
   });
 
-  it('debits USDT balance and creates pending USDT ledger tx', async () => {
-    const userId = await seedUser({ usdtBalance: 80 });
-
-    const dto: WithdrawDto = {
-      amount: 30,
-      currency: 'usdt',
-      destination_address: VALID_SOLANA_ADDR,
-    };
-    const result = await service.requestWithdrawal(userId, dto, true, false);
-
-    expect(result.status).toBe('pending');
-
-    const account = await prisma.ledgerAccount.findUniqueOrThrow({ where: { user_id: userId } });
-    expect(account.balance_usdt.toString()).toBe('50');
-    expect(account.balance_usdc.toString()).toBe('0'); // USDC untouched
-    expect(account.lifetime_withdrawn_usdt.toString()).toBe('30');
-
-    const tx = await prisma.ledgerTransaction.findUniqueOrThrow({
-      where: { id: result.ledger_transaction_id },
-    });
-    expect(tx.currency).toBe('usdt');
-    expect(tx.amount.toString()).toBe('30');
-    expect(tx.status).toBe('pending');
-  });
-
   it('throws RateLimitError when daily withdrawal count reaches max_withdrawal_per_day', async () => {
-    const userId = await seedUser({ usdcBalance: 500 });
+    const userId = await seedUser({ balance: 500 });
     // Seed 3 pending withdrawal transactions within the last 24h (= max)
     const recentTime = new Date(Date.now() - 60 * 1000); // 1 minute ago
     for (let i = 0; i < 3; i++) {
@@ -202,7 +175,7 @@ describe('WalletService.requestWithdrawal', () => {
         data: {
           transaction_type: 'withdrawal',
           amount: 10,
-          currency: 'usdc',
+          currency: 'usdt',
           from_account_type: 'user',
           from_account_id: userId,
           to_account_type: 'external',
@@ -215,7 +188,6 @@ describe('WalletService.requestWithdrawal', () => {
 
     const dto: WithdrawDto = {
       amount: 10,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     await expect(service.requestWithdrawal(userId, dto, true, false)).rejects.toMatchObject({
@@ -224,14 +196,13 @@ describe('WalletService.requestWithdrawal', () => {
 
     // Balance must NOT have been debited
     const account = await prisma.ledgerAccount.findUniqueOrThrow({ where: { user_id: userId } });
-    expect(account.balance_usdc.toString()).toBe('500');
+    expect(account.balance.toString()).toBe('500');
   });
 
   it('throws AuthorizationError when account is banned', async () => {
-    const userId = await seedUser({ banned: true, usdcBalance: 100 });
+    const userId = await seedUser({ banned: true, balance: 100 });
     const dto: WithdrawDto = {
       amount: 10,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     await expect(service.requestWithdrawal(userId, dto, true, true)).rejects.toMatchObject({
@@ -240,10 +211,9 @@ describe('WalletService.requestWithdrawal', () => {
   });
 
   it('throws AuthorizationError when email is not verified', async () => {
-    const userId = await seedUser({ unverified: true, usdcBalance: 100 });
+    const userId = await seedUser({ unverified: true, balance: 100 });
     const dto: WithdrawDto = {
       amount: 10,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     await expect(service.requestWithdrawal(userId, dto, false, false)).rejects.toMatchObject({
@@ -252,10 +222,9 @@ describe('WalletService.requestWithdrawal', () => {
   });
 
   it('throws ValidationError for an invalid Solana destination address', async () => {
-    const userId = await seedUser({ usdcBalance: 100 });
+    const userId = await seedUser({ balance: 100 });
     const dto: WithdrawDto = {
       amount: 10,
-      currency: 'usdc',
       destination_address: 'not-a-valid-solana-address!!',
     };
     await expect(service.requestWithdrawal(userId, dto, true, false)).rejects.toMatchObject({
@@ -264,11 +233,10 @@ describe('WalletService.requestWithdrawal', () => {
   });
 
   it('throws ValidationError when amount is below min_withdrawal_usd', async () => {
-    const userId = await seedUser({ usdcBalance: 100 });
+    const userId = await seedUser({ balance: 100 });
     // min_withdrawal_usd = 5 in mock; 2 is below minimum
     const dto: WithdrawDto = {
       amount: 2,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     await expect(service.requestWithdrawal(userId, dto, true, false)).rejects.toMatchObject({
@@ -277,11 +245,10 @@ describe('WalletService.requestWithdrawal', () => {
   });
 
   it('throws InsufficientBalanceError and leaves balance intact when balance < amount', async () => {
-    const userId = await seedUser({ usdcBalance: 10 });
+    const userId = await seedUser({ balance: 10 });
     // Balance = 10; requesting 50
     const dto: WithdrawDto = {
       amount: 50,
-      currency: 'usdc',
       destination_address: VALID_SOLANA_ADDR,
     };
     await expect(service.requestWithdrawal(userId, dto, true, false)).rejects.toMatchObject({
@@ -290,6 +257,6 @@ describe('WalletService.requestWithdrawal', () => {
 
     // Balance must remain unchanged
     const account = await prisma.ledgerAccount.findUniqueOrThrow({ where: { user_id: userId } });
-    expect(account.balance_usdc.toString()).toBe('10');
+    expect(account.balance.toString()).toBe('10');
   });
 });

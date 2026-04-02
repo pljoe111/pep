@@ -1,5 +1,6 @@
 /**
  * CampaignService state-machine integration tests — spec §7.10–§7.15, §3.3.
+ * Option B: single unified balance.
  *
  * Covers:
  *   - resolveCampaign: fee math (ROUND_DOWN), escrow zeroing, creator payout, fee account credit
@@ -78,7 +79,8 @@ beforeAll(async () => {
 
 // Reset fee account balances before each test so assertions are absolute not relative.
 beforeEach(async () => {
-  await prisma.feeAccount.updateMany({ data: { balance_usdc: 0, balance_usdt: 0 } });
+  // Option B: single balance field
+  await prisma.feeAccount.updateMany({ data: { balance: 0 } });
 });
 
 afterEach(async () => {
@@ -117,7 +119,7 @@ afterEach(async () => {
     createdUserIds.length = 0;
   }
   // Reset fee account after each test that might have modified it
-  await prisma.feeAccount.updateMany({ data: { balance_usdc: 0, balance_usdt: 0 } });
+  await prisma.feeAccount.updateMany({ data: { balance: 0 } });
 });
 
 afterAll(async () => {
@@ -136,6 +138,7 @@ async function seedUser(): Promise<string> {
       email_verified: true,
     },
   });
+  // Option B: single balance field
   await prisma.ledgerAccount.create({ data: { user_id: u.id } });
   createdUserIds.push(u.id);
   return u.id;
@@ -176,10 +179,10 @@ describe('CampaignService.resolveCampaign', () => {
     const creatorId = await seedUser();
     const campaignId = await seedCampaign(creatorId, 'results_published', 5);
 
-    // Seed escrow with 200 USDC
+    // Seed escrow with 200 (unified balance)
     await prisma.campaignEscrow.update({
       where: { campaign_id: campaignId },
-      data: { balance_usdc: 200 },
+      data: { balance: 200 },
     });
 
     await service.resolveCampaign(campaignId);
@@ -190,35 +193,36 @@ describe('CampaignService.resolveCampaign', () => {
     const creatorAccount = await prisma.ledgerAccount.findUniqueOrThrow({
       where: { user_id: creatorId },
     });
-    expect(creatorAccount.balance_usdc.toString()).toBe('190');
+    expect(creatorAccount.balance.toString()).toBe('190');
 
     // Escrow zeroed
     const escrow = await prisma.campaignEscrow.findUniqueOrThrow({
       where: { campaign_id: campaignId },
     });
-    expect(escrow.balance_usdc.toString()).toBe('0');
-    expect(escrow.balance_usdt.toString()).toBe('0');
+    expect(escrow.balance.toString()).toBe('0');
 
     // Fee account credited
     const feeAccount = await prisma.feeAccount.findUniqueOrThrow({ where: { id: feeAccountId } });
-    expect(feeAccount.balance_usdc.toString()).toBe('10');
+    expect(feeAccount.balance.toString()).toBe('10');
 
-    // Payout ledger transaction: campaign → creator
+    // Payout ledger transaction: campaign → creator (currency = usdt, Option B)
     const payoutTxns = await prisma.ledgerTransaction.findMany({
-      where: { to_account_id: creatorId, transaction_type: 'payout', currency: 'usdc' },
+      where: { to_account_id: creatorId, transaction_type: 'payout' },
     });
     expect(payoutTxns).toHaveLength(1);
     expect(payoutTxns[0].amount.toString()).toBe('190');
+    expect(payoutTxns[0].currency).toBe('usdt'); // Option B: always USDT
     expect(payoutTxns[0].from_account_type).toBe('campaign');
     expect(payoutTxns[0].from_account_id).toBe(campaignId);
     expect(payoutTxns[0].status).toBe('completed');
 
     // Fee ledger transaction: campaign → fee account
     const feeTxns = await prisma.ledgerTransaction.findMany({
-      where: { from_account_id: campaignId, transaction_type: 'fee', currency: 'usdc' },
+      where: { from_account_id: campaignId, transaction_type: 'fee' },
     });
     expect(feeTxns).toHaveLength(1);
     expect(feeTxns[0].amount.toString()).toBe('10');
+    expect(feeTxns[0].currency).toBe('usdt');
     expect(feeTxns[0].to_account_type).toBe('fee');
     expect(feeTxns[0].status).toBe('completed');
 
@@ -236,20 +240,20 @@ describe('CampaignService.refundContributions', () => {
     const contributorB = await seedUser();
     const campaignId = await seedCampaign(creatorId, 'funded');
 
-    // Seed starting balances: A = 25 USDC, B = 20 USDT
+    // Seed starting balances
     await prisma.ledgerAccount.update({
       where: { user_id: contributorA },
-      data: { balance_usdc: 25 },
+      data: { balance: 25 },
     });
     await prisma.ledgerAccount.update({
       where: { user_id: contributorB },
-      data: { balance_usdt: 20 },
+      data: { balance: 20 },
     });
 
-    // Seed escrow to match the contributions already in
+    // Seed unified escrow balance: 75 + 30 = 105
     await prisma.campaignEscrow.update({
       where: { campaign_id: campaignId },
-      data: { balance_usdc: 75, balance_usdt: 30 },
+      data: { balance: 105 },
     });
     await prisma.campaign.update({
       where: { id: campaignId },
@@ -262,7 +266,7 @@ describe('CampaignService.refundContributions', () => {
         campaign_id: campaignId,
         contributor_id: contributorA,
         amount_usd: 75,
-        currency: 'usdc',
+        currency: 'usdc', // currency still tracked
         status: 'completed',
       },
     });
@@ -271,31 +275,30 @@ describe('CampaignService.refundContributions', () => {
         campaign_id: campaignId,
         contributor_id: contributorB,
         amount_usd: 30,
-        currency: 'usdt',
+        currency: 'usdt', // currency still tracked
         status: 'completed',
       },
     });
 
     await service.refundContributions(campaignId, 'test refund reason');
 
-    // A USDC balance restored: 25 + 75 = 100
+    // A balance restored: 25 + 75 = 100
     const accountA = await prisma.ledgerAccount.findUniqueOrThrow({
       where: { user_id: contributorA },
     });
-    expect(accountA.balance_usdc.toString()).toBe('100');
+    expect(accountA.balance.toString()).toBe('100');
 
-    // B USDT balance restored: 20 + 30 = 50
+    // B balance restored: 20 + 30 = 50
     const accountB = await prisma.ledgerAccount.findUniqueOrThrow({
       where: { user_id: contributorB },
     });
-    expect(accountB.balance_usdt.toString()).toBe('50');
+    expect(accountB.balance.toString()).toBe('50');
 
-    // Escrow zeroed (both currencies)
+    // Escrow zeroed
     const escrow = await prisma.campaignEscrow.findUniqueOrThrow({
       where: { campaign_id: campaignId },
     });
-    expect(escrow.balance_usdc.toString()).toBe('0');
-    expect(escrow.balance_usdt.toString()).toBe('0');
+    expect(escrow.balance.toString()).toBe('0');
 
     // Both contributions marked refunded
     const updatedA = await prisma.contribution.findUniqueOrThrow({ where: { id: contribA.id } });

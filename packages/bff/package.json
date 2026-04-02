@@ -2,6 +2,9 @@
   "name": "bff",
   "version": "1.0.0",
   "private": true,
+  "prisma": {
+    "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
+  },
   "scripts": {
     "dev": "tsoa spec-and-routes && ts-node-dev --inspect -- src/server.ts",
     "build": "pnpm exec prisma generate && tsoa spec-and-routes && tsc",
@@ -14,6 +17,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"prisma/**/*.prisma\"",
     "prisma:generate": "pnpm exec prisma generate",
     "prisma:migrate": "pnpm exec prisma migrate dev",
+    "prisma:seed": "pnpm exec ts-node --project tsconfig.json -e \"require('./prisma/seed.ts')\" || pnpm exec ts-node prisma/seed.ts",
     "prisma:studio": "pnpm exec prisma studio"
   },
   "dependencies": {

@@ -32,7 +32,6 @@ const TX_TYPE_OPTIONS = [
 
 interface WithdrawForm {
   amount: string;
-  currency: 'usdc' | 'usdt';
   destination_address: string;
 }
 
@@ -126,7 +125,7 @@ export function WalletPage(): React.ReactElement {
     formState: { errors },
     reset,
   } = useForm<WithdrawForm>({
-    defaultValues: { amount: '', currency: 'usdc', destination_address: '' },
+    defaultValues: { amount: '', destination_address: '' },
   });
 
   const onWithdraw = handleSubmit(async (data) => {
@@ -137,7 +136,6 @@ export function WalletPage(): React.ReactElement {
     try {
       await withdraw({
         amount: parseFloat(data.amount),
-        currency: data.currency,
         destination_address: data.destination_address,
       });
       toast.success('Withdrawal submitted — processing...');
@@ -153,28 +151,18 @@ export function WalletPage(): React.ReactElement {
       <PageContainer className="py-4">
         <h1 className="text-2xl font-bold text-text mb-6">Wallet</h1>
 
-        {/* Balance cards */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* Balance card — unified single balance (Option B) */}
+        <div className="mb-6">
           {balanceLoading ? (
-            <>
-              <div className="h-24 bg-stone-200 rounded-2xl animate-pulse" />
-              <div className="h-24 bg-stone-200 rounded-2xl animate-pulse" />
-            </>
+            <div className="h-28 bg-stone-200 rounded-2xl animate-pulse" />
           ) : (
-            <>
-              <Card padding="md" className="bg-gradient-to-br from-teal-500 to-teal-700 border-0">
-                <p className="text-xs text-teal-100 font-medium mb-1">USDC</p>
-                <p className="text-2xl font-extrabold text-white">
-                  {formatUSD(balance?.balance_usdc ?? 0)}
-                </p>
-              </Card>
-              <Card padding="md" className="bg-gradient-to-br from-blue-500 to-blue-700 border-0">
-                <p className="text-xs text-blue-100 font-medium mb-1">USDT</p>
-                <p className="text-2xl font-extrabold text-white">
-                  {formatUSD(balance?.balance_usdt ?? 0)}
-                </p>
-              </Card>
-            </>
+            <Card padding="md" className="bg-gradient-to-br from-teal-500 to-teal-700 border-0">
+              <p className="text-xs text-teal-100 font-medium mb-1">Total Balance</p>
+              <p className="text-3xl font-extrabold text-white">
+                {formatUSD(balance?.balance ?? 0)}
+              </p>
+              <p className="text-xs text-teal-200 mt-1">Settled on-chain as USDT</p>
+            </Card>
           )}
         </div>
 
@@ -227,20 +215,6 @@ export function WalletPage(): React.ReactElement {
           {showWithdraw && (
             <form onSubmit={(e) => void onWithdraw(e)} className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-text block mb-1">Currency</label>
-                <div className="flex gap-2">
-                  {(['usdc', 'usdt'] as const).map((c) => (
-                    <label
-                      key={c}
-                      className="flex-1 flex items-center justify-center py-3 rounded-xl border-2 text-sm font-semibold cursor-pointer min-h-[44px] transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary-l has-[:checked]:text-primary border-border text-text-2"
-                    >
-                      <input type="radio" value={c} className="sr-only" {...register('currency')} />
-                      {c.toUpperCase()}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <label
                   htmlFor="withdraw-amount"
                   className="text-sm font-medium text-text block mb-1"
@@ -287,7 +261,9 @@ export function WalletPage(): React.ReactElement {
                   <p className="text-sm text-danger mt-1">{errors.destination_address.message}</p>
                 )}
               </div>
-              <p className="text-xs text-text-2">Minimum withdrawal: $5.00</p>
+              <p className="text-xs text-text-2">
+                Minimum withdrawal: $5.00 · Sent as USDT on Solana
+              </p>
               <div className="flex gap-2">
                 <Button
                   type="button"
