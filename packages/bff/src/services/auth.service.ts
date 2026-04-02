@@ -175,8 +175,8 @@ export class AuthService {
     const emailPayload: EmailJobPayload = {
       to: dto.email,
       subject: 'Verify your email address',
-      html: `<p>Click to verify: ${env.APP_URL}/verify-email?token=${rawVerificationToken}</p>`,
-      text: `Verify your email: ${env.APP_URL}/verify-email?token=${rawVerificationToken}`,
+      html: `<p>Click to verify: ${env.FRONTEND_URL}/verify-email?token=${rawVerificationToken}</p>`,
+      text: `Verify your email: ${env.FRONTEND_URL}/verify-email?token=${rawVerificationToken}`,
     };
     await emailQueue.add(emailPayload);
 
@@ -322,7 +322,7 @@ export class AuthService {
 
   // ─── 7.16 Verify Email ─────────────────────────────────────────────────────
 
-  async verifyEmail(rawToken: string, ipAddress?: string): Promise<void> {
+  async verifyEmail(rawToken: string, ipAddress?: string): Promise<AuthResponseDto> {
     const tokenHash = sha256Hex(rawToken);
 
     const record = await this.prisma.emailVerificationToken.findUnique({
@@ -333,11 +333,22 @@ export class AuthService {
       throw new ValidationError('Invalid or expired token');
     }
 
+    const rawRefreshToken = randomHex(32);
+    const refreshTokenHash = sha256Hex(rawRefreshToken);
+
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: record.user_id }, data: { email_verified: true } });
       await tx.emailVerificationToken.update({
         where: { id: record.id },
         data: { used_at: new Date() },
+      });
+      await tx.refreshToken.create({
+        data: {
+          user_id: record.user_id,
+          token_hash: refreshTokenHash,
+          expires_at: refreshTokenExpiresAt(),
+          ...(ipAddress !== undefined ? { ip_address: ipAddress } : {}),
+        },
       });
     });
 
@@ -348,6 +359,18 @@ export class AuthService {
       entityId: record.user_id,
       ipAddress,
     });
+
+    const userDto = await this.buildUserDto(record.user_id);
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: record.user_id } });
+    const accessToken = signAccessToken({
+      userId: user.id,
+      email: user.email,
+      emailVerified: true,
+      claims: userDto.claims,
+      isBanned: false,
+    });
+
+    return { user: userDto, accessToken, refreshToken: rawRefreshToken };
   }
 
   // ─── 7.16 Resend Verification ──────────────────────────────────────────────
@@ -374,8 +397,8 @@ export class AuthService {
     const emailPayload: EmailJobPayload = {
       to: user.email,
       subject: 'Verify your email address',
-      html: `<p>Click to verify: ${env.APP_URL}/verify-email?token=${rawToken}</p>`,
-      text: `Verify your email: ${env.APP_URL}/verify-email?token=${rawToken}`,
+      html: `<p>Click to verify: ${env.FRONTEND_URL}/verify-email?token=${rawToken}</p>`,
+      text: `Verify your email: ${env.FRONTEND_URL}/verify-email?token=${rawToken}`,
     };
     await emailQueue.add(emailPayload);
   }

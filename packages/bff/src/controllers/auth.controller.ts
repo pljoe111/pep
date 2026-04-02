@@ -93,9 +93,8 @@ export class AuthController extends Controller {
   public async verifyEmail(
     @Body() body: VerifyEmailDto,
     @Request() req: ExpressRequest
-  ): Promise<MessageResponseDto> {
-    await this.authService.verifyEmail(body.token, req.ip ?? undefined);
-    return { message: 'Email verified successfully' };
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyEmail(body.token, req.ip ?? undefined);
   }
 
   /** POST /auth/resend-verification — spec §9.1 (JWT required) */
