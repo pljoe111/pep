@@ -15,6 +15,15 @@ export class AdminHideCampaignDto {
   hidden!: boolean;
 }
 
+export class AdminFlagCampaignDto {
+  @IsBoolean()
+  flagged!: boolean;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 export class AdminBanUserDto {
   @IsBoolean()
   banned!: boolean;

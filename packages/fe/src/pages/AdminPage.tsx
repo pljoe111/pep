@@ -24,6 +24,11 @@ import {
   useAdminHideCampaign,
   useAdminVerifyCoa,
   useAdminFeeSweep,
+  useAdminFlagCampaign,
+  useAdminUpdateConfig,
+  useAdminUsers,
+  useAdminBanUser,
+  useAdminManageClaim,
 } from '../api/hooks/useAdmin';
 import { useAuth } from '../hooks/useAuth';
 import { formatUSD } from '../lib/formatters';
@@ -105,8 +110,10 @@ function VerifyCoaModal({
 function AdminCampaignRow({ campaign }: { campaign: CampaignDetailDto }): React.ReactElement {
   const toast = useToast();
   const [selectedCoa, setSelectedCoa] = useState<CoaDto | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const { mutateAsync: refundCampaign, isPending: refundPending } = useAdminRefundCampaign();
   const { mutateAsync: hideCampaign, isPending: hidePending } = useAdminHideCampaign();
+  const { mutateAsync: flagCampaign, isPending: flagPending } = useAdminFlagCampaign();
 
   const handleRefund = async (): Promise<void> => {
     if (!confirm('Force-refund this campaign? This cannot be undone.')) return;
@@ -118,7 +125,7 @@ function AdminCampaignRow({ campaign }: { campaign: CampaignDetailDto }): React.
     }
   };
 
-  const isHidden = false; // We track hidden state via server; optimistic shown here
+  const isHidden = campaign.is_hidden;
 
   const handleHide = async (): Promise<void> => {
     try {
@@ -142,6 +149,24 @@ function AdminCampaignRow({ campaign }: { campaign: CampaignDetailDto }): React.
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-sm text-text leading-tight mb-1">{campaign.title}</h4>
             <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                aria-label={expanded ? 'Collapse details' : 'Expand details'}
+                className="ml-1 p-1 rounded hover:bg-surface-a transition-colors"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 8 10 12 14 8" />
+                </svg>
+              </button>
               <Badge variant={campaignStatusVariant(campaign.status)}>
                 {campaignStatusLabel(campaign.status)}
               </Badge>
@@ -172,6 +197,27 @@ function AdminCampaignRow({ campaign }: { campaign: CampaignDetailDto }): React.
           >
             {isHidden ? 'Unhide' : 'Hide'}
           </Button>
+          <Button
+            variant={campaign.is_flagged_for_review ? 'secondary' : 'danger'}
+            size="sm"
+            loading={flagPending}
+            onClick={() => {
+              void (async () => {
+                if (campaign.is_flagged_for_review) {
+                  if (confirm('Mark as reviewed and clear flag?')) {
+                    await flagCampaign({ id: campaign.id, dto: { flagged: false } });
+                    toast.success('Campaign marked as reviewed');
+                  }
+                } else {
+                  const reason = prompt('Reason for flagging (optional):') || undefined;
+                  await flagCampaign({ id: campaign.id, dto: { flagged: true, reason } });
+                  toast.success('Campaign flagged for review');
+                }
+              })();
+            }}
+          >
+            {campaign.is_flagged_for_review ? 'Mark Reviewed' : 'Flag'}
+          </Button>
         </div>
         {/* COA verification */}
         {pendingCoas.length > 0 && (
@@ -192,16 +238,357 @@ function AdminCampaignRow({ campaign }: { campaign: CampaignDetailDto }): React.
             ))}
           </div>
         )}
+        {expanded && (
+          <div className="mt-3 p-3 rounded-xl bg-surface-a border border-border">
+            <div className="mb-2">
+              <span className="text-xs font-semibold text-text">Description:</span>
+              <p className="text-xs text-text-2 whitespace-pre-line">
+                {campaign.description || 'No description'}
+              </p>
+            </div>
+            {campaign.flagged_reason && (
+              <div className="mb-2">
+                <span className="text-xs font-semibold text-warning">Flag Reason:</span>
+                <p className="text-xs text-warning whitespace-pre-line">
+                  {campaign.flagged_reason}
+                </p>
+              </div>
+            )}
+            <div className="mb-2">
+              <span className="text-xs font-semibold text-text">Samples:</span>
+              <ul className="list-disc pl-5">
+                {(campaign.samples || []).map((sample) => (
+                  <li key={sample.id} className="mb-1">
+                    <span className="text-xs text-text">{sample.sample_label}</span>
+                    {sample.coa && (
+                      <span className="ml-2 text-xs">
+                        COA:{' '}
+                        <Badge variant={verificationStatusVariant(sample.coa.verification_status)}>
+                          {verificationStatusLabel(sample.coa.verification_status)}
+                        </Badge>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="mb-2">
+              <span className="text-xs font-semibold text-text">Funding:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs">
+                  {formatUSD(campaign.current_funding_usd)} /{' '}
+                  {formatUSD(campaign.funding_threshold_usd)} (Requested:{' '}
+                  {formatUSD(campaign.amount_requested_usd)})
+                </span>
+                <div className="flex-1 h-2 bg-border rounded-xl overflow-hidden">
+                  <div
+                    className="h-2 bg-teal-400"
+                    style={{
+                      width: `${Math.min(100, Math.round((campaign.current_funding_usd / campaign.funding_threshold_usd) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mb-2">
+              <span className="text-xs font-semibold text-text">Creator:</span>{' '}
+              <a href={`/users/${campaign.creator?.id}`} className="text-xs text-primary underline">
+                {campaign.creator?.username || 'Unknown'}
+              </a>
+            </div>
+          </div>
+        )}
       </Card>
       {selectedCoa && <VerifyCoaModal coa={selectedCoa} onClose={() => setSelectedCoa(null)} />}
     </>
   );
 }
 
-// Config tab
+// Dashboard summary component
+function DashboardSummary({ campaigns }: { campaigns: CampaignDetailDto[] }): React.ReactElement {
+  const flaggedCount = campaigns.filter((c) => c.is_flagged_for_review).length;
+  const pendingCoaCount = campaigns.reduce(
+    (acc, c) =>
+      acc +
+      (c.samples
+        ?.flatMap((s) => (s.coa ? [s.coa] : []))
+        .filter(
+          (coa) =>
+            coa.verification_status === 'pending' || coa.verification_status === 'code_not_found'
+        ).length ?? 0),
+    0
+  );
+  const activeCount = campaigns.filter(
+    (c) => c.status === 'created' || c.status === 'funded'
+  ).length;
+
+  return (
+    <div className="flex gap-3 mb-6">
+      <div className="px-4 py-2 rounded-xl bg-amber-100 text-amber-800 text-xs font-medium">
+        Flagged: {flaggedCount}
+      </div>
+      <div className="px-4 py-2 rounded-xl bg-blue-100 text-blue-800 text-xs font-medium">
+        Pending COAs: {pendingCoaCount}
+      </div>
+      <div className="px-4 py-2 rounded-xl bg-teal-100 text-teal-800 text-xs font-medium">
+        Active: {activeCount}
+      </div>
+    </div>
+  );
+}
+
+// Users tab component
+function UsersTab(): React.ReactElement {
+  const [search, setSearch] = useState('');
+  const { data: usersResp, isLoading } = useAdminUsers(search);
+  const users = usersResp?.data ?? [];
+  const { mutateAsync: banUser } = useAdminBanUser();
+  const { mutateAsync: manageClaim } = useAdminManageClaim();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 mb-2">
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+        />
+      </div>
+      {isLoading && <Spinner />}
+      {!isLoading && users.length === 0 && <EmptyState heading="No users found" />}
+      {!isLoading && users.length > 0 && (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-text-2">
+              <th className="py-2">Email</th>
+              <th>Username</th>
+              <th>Banned</th>
+              <th>Claims</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-t border-border">
+                <td className="py-2">{u.email}</td>
+                <td>{u.username || '-'}</td>
+                <td>{u.is_banned ? 'Yes' : 'No'}</td>
+                <td>{u.claims?.join(', ')}</td>
+                <td>{u.created_at?.slice(0, 10)}</td>
+                <td>
+                  <button
+                    className="text-xs text-danger underline mr-2"
+                    onClick={() => void banUser({ id: u.id, dto: { banned: !u.is_banned } })}
+                  >
+                    {u.is_banned ? 'Unban' : 'Ban'}
+                  </button>
+                  <button
+                    className="text-xs text-primary underline mr-2"
+                    onClick={() =>
+                      void manageClaim({
+                        id: u.id,
+                        dto: {
+                          claim_type: 'admin',
+                          action: u.claims?.includes('admin') ? 'revoke' : 'grant',
+                        },
+                      })
+                    }
+                  >
+                    {u.claims?.includes('admin') ? 'Revoke Admin' : 'Grant Admin'}
+                  </button>
+                  <button
+                    className="text-xs text-primary underline"
+                    onClick={() =>
+                      void manageClaim({
+                        id: u.id,
+                        dto: {
+                          claim_type: 'lab_approver',
+                          action: u.claims?.includes('lab_approver') ? 'revoke' : 'grant',
+                        },
+                      })
+                    }
+                  >
+                    {u.claims?.includes('lab_approver')
+                      ? 'Revoke Lab Approver'
+                      : 'Grant Lab Approver'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+// Config tab — shows typed inputs based on the runtime type of the config value.
+// All hooks must be called unconditionally (rules of hooks).
+function ConfigValueEditor({
+  cfgKey,
+  rawJson,
+  isPending,
+  onSave,
+  onCancel,
+}: {
+  cfgKey: string;
+  rawJson: string;
+  isPending: boolean;
+  onSave: (raw: string) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const parsed: unknown = JSON.parse(rawJson);
+  const type = typeof parsed;
+
+  // Declare all state unconditionally — only the active branch is used to save
+  const [boolVal, setBoolVal] = useState<boolean>(type === 'boolean' ? (parsed as boolean) : false);
+  const [numVal, setNumVal] = useState<string>(type === 'number' ? String(parsed) : '');
+  const [strVal, setStrVal] = useState<string>(type === 'string' ? (parsed as string) : '');
+  const [jsonVal, setJsonVal] = useState<string>(rawJson);
+
+  if (type === 'boolean') {
+    return (
+      <div className="flex items-center gap-4 mt-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={boolVal}
+          className={[
+            'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+            boolVal ? 'bg-primary' : 'bg-border',
+          ].join(' ')}
+          onClick={() => setBoolVal((v) => !v)}
+        >
+          <span
+            className={[
+              'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform mx-1',
+              boolVal ? 'translate-x-5' : 'translate-x-0',
+            ].join(' ')}
+          />
+        </button>
+        <span className="text-sm text-text font-medium">{boolVal ? 'Enabled' : 'Disabled'}</span>
+        <Button
+          variant="primary"
+          size="sm"
+          loading={isPending}
+          onClick={() => onSave(String(boolVal))}
+        >
+          Save
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  if (type === 'number') {
+    return (
+      <div className="flex gap-2 mt-2 items-center">
+        <input
+          key={cfgKey}
+          type="number"
+          className="flex-1 rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+          value={numVal}
+          onChange={(e) => setNumVal(e.target.value)}
+          autoFocus
+        />
+        <Button variant="primary" size="sm" loading={isPending} onClick={() => onSave(numVal)}>
+          Save
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  if (type === 'string') {
+    return (
+      <div className="flex gap-2 mt-2 items-center">
+        <input
+          key={cfgKey}
+          type="text"
+          className="flex-1 rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+          value={strVal}
+          onChange={(e) => setStrVal(e.target.value)}
+          autoFocus
+        />
+        <Button
+          variant="primary"
+          size="sm"
+          loading={isPending}
+          onClick={() => onSave(JSON.stringify(strVal))}
+        >
+          Save
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  // object / array — raw JSON textarea fallback
+  return (
+    <>
+      <textarea
+        key={cfgKey}
+        className="w-full rounded-xl border border-border px-3 py-2 text-xs font-mono bg-surface min-h-[80px] mt-2"
+        value={jsonVal}
+        onChange={(e) => setJsonVal(e.target.value)}
+        rows={6}
+        autoFocus
+      />
+      <div className="flex gap-2 mt-2">
+        <Button variant="primary" size="sm" loading={isPending} onClick={() => onSave(jsonVal)}>
+          Save
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </>
+  );
+}
+
 function ConfigTab(): React.ReactElement {
   const { data: configs, isLoading } = useAdminConfig();
   const toast = useToast();
+  const { mutateAsync: updateConfig, isPending: updatingConfig } = useAdminUpdateConfig();
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSave = (cfgKey: string, raw: string): void => {
+    void (async () => {
+      setValidationError(null);
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        await updateConfig({ key: cfgKey, dto: { value: parsed } });
+        setEditKey(null);
+        toast.success('Config updated');
+      } catch (err: unknown) {
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          'response' in err &&
+          typeof (err as { response?: { data?: { message?: string } } }).response?.data?.message ===
+            'string'
+        ) {
+          setValidationError(
+            (err as { response: { data: { message: string } } }).response.data.message
+          );
+        } else if (err instanceof SyntaxError) {
+          setValidationError('Invalid value');
+        } else {
+          setValidationError('Update failed');
+        }
+      }
+    })();
+  };
 
   if (isLoading) return <Spinner />;
   if (!configs || configs.length === 0) {
@@ -212,23 +599,35 @@ function ConfigTab(): React.ReactElement {
     <div className="space-y-3">
       {configs.map((cfg) => (
         <Card key={cfg.id} padding="md">
-          <p className="font-bold text-sm text-text mb-1">{cfg.config_key}</p>
-          {cfg.description && <p className="text-xs text-text-2 mb-2">{cfg.description}</p>}
-          <pre className="text-xs bg-surface-a rounded-lg p-2 overflow-x-auto">
-            {JSON.stringify(cfg.config_value, null, 2)}
-          </pre>
-          <p className="text-xs text-text-3 mt-1">Updated: {cfg.updated_at}</p>
-          <div className="mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                toast.info(`Edit for "${cfg.config_key}" — contact dev team`);
-              }}
-            >
-              Edit (contact dev)
-            </Button>
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-bold text-sm text-text">{cfg.config_key}</p>
+            {editKey !== cfg.config_key && (
+              <Button variant="ghost" size="sm" onClick={() => setEditKey(cfg.config_key)}>
+                Edit
+              </Button>
+            )}
           </div>
+          {cfg.description && <p className="text-xs text-text-2 mb-2">{cfg.description}</p>}
+          {editKey === cfg.config_key ? (
+            <>
+              <ConfigValueEditor
+                cfgKey={cfg.config_key}
+                rawJson={JSON.stringify(cfg.config_value)}
+                isPending={updatingConfig}
+                onSave={(raw) => handleSave(cfg.config_key, raw)}
+                onCancel={() => {
+                  setEditKey(null);
+                  setValidationError(null);
+                }}
+              />
+              {validationError && <p className="text-xs text-danger mt-1">{validationError}</p>}
+            </>
+          ) : (
+            <div className="text-sm text-text bg-surface-a rounded-lg px-3 py-2 font-mono">
+              {String(cfg.config_value)}
+            </div>
+          )}
+          <p className="text-xs text-text-3 mt-2">Updated: {cfg.updated_at}</p>
         </Card>
       ))}
     </div>
@@ -328,7 +727,6 @@ export function AdminPage(): React.ReactElement {
       label: 'Campaigns',
       content: (
         <div>
-          {/* Filters */}
           <div className="flex gap-2 mb-4">
             <select
               value={campaignStatusFilter}
@@ -364,6 +762,11 @@ export function AdminPage(): React.ReactElement {
       ),
     },
     {
+      id: 'users',
+      label: 'Users',
+      content: <UsersTab />,
+    },
+    {
       id: 'config',
       label: 'Config',
       content: <ConfigTab />,
@@ -379,6 +782,7 @@ export function AdminPage(): React.ReactElement {
     <AppShell>
       <PageContainer className="py-4">
         <h1 className="text-2xl font-bold text-text mb-6">Admin Dashboard</h1>
+        <DashboardSummary campaigns={campaigns} />
         <Tabs tabs={tabs} defaultTab="campaigns" />
       </PageContainer>
     </AppShell>

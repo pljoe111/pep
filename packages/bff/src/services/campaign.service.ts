@@ -856,6 +856,7 @@ export class CampaignService {
       flagged_reason: campaign.flagged_reason,
       is_itemized: campaign.is_itemized,
       itemization_data: campaign.itemization_data,
+      is_hidden: !!campaign.is_hidden,
       samples,
       updates: updates.map((u) => ({
         id: u.id,

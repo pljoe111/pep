@@ -12,6 +12,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { AccountPage } from '../pages/AccountPage';
 import { OfflinePage } from '../pages/OfflinePage';
 import { VerifyEmailPage } from '../pages/VerifyEmailPage';
+import { UserPage } from '../pages/UserPage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -109,6 +110,9 @@ function AppRoutes(): React.ReactElement {
           </ProtectedRoute>
         }
       />
+
+      {/* Public user profiles */}
+      <Route path="/users/:id" element={<UserPage />} />
 
       {/* Admin-only routes */}
       <Route

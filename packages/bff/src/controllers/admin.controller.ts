@@ -26,6 +26,7 @@ import type {
   CoaDto,
   AdminRefundDto,
   AdminHideCampaignDto,
+  AdminFlagCampaignDto,
   AdminBanUserDto,
   AdminClaimDto,
   AdminVerifyCoaDto,
@@ -70,6 +71,18 @@ export class AdminController extends Controller {
     return this.adminService.forceRefund(user.userId, id, body.reason);
   }
 
+  /** POST /admin/campaigns/:id/flag */
+  @Post('campaigns/{id}/flag')
+  public async flagCampaign(
+    @Path() id: string,
+    @Body() body: AdminFlagCampaignDto,
+    @Request() req: AuthRequest
+  ): Promise<CampaignDetailDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.adminService.flagCampaign(user.userId, id, body.flagged, body.reason);
+  }
+
   /** POST /admin/campaigns/:id/hide */
   @Post('campaigns/{id}/hide')
   public async hideCampaign(
@@ -92,6 +105,16 @@ export class AdminController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.adminService.verifyCoa(user.userId, id, body);
+  }
+
+  /** GET /admin/users */
+  @Get('users')
+  public async getUsers(
+    @Query() search?: string,
+    @Query() page?: number,
+    @Query() limit?: number
+  ): Promise<PaginatedResponseDto<UserDto>> {
+    return this.adminService.getUsers(search, page, limit);
   }
 
   /** POST /admin/users/:id/ban */

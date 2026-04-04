@@ -50,7 +50,10 @@ export const queryKeys = {
     campaigns: (filters: CampaignFilters & { flagged?: boolean }) =>
       ['admin', 'campaigns', filters] as const,
     config: ['admin', 'config'] as const,
-    users: (search: string) => ['admin', 'users', search] as const,
+    users: (search?: string) => ['admin', 'users', search ?? ''] as const,
+  },
+  users: {
+    profile: (id: string) => ['users', id, 'profile'] as const,
   },
   appInfo: ['app-info'] as const,
 } as const;

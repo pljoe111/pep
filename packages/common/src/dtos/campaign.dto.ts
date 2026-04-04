@@ -228,54 +228,143 @@ export interface ReactionCountsDto {
 
 // ─── Response DTOs ────────────────────────────────────────────────────────────
 
-export interface CampaignListDto {
-  id: string;
-  title: string;
-  status: CampaignStatus;
-  creator: { id: string; username: string | null };
-  amount_requested_usd: number;
-  current_funding_usd: number;
-  funding_threshold_usd: number;
-  /** current_funding_usd / funding_threshold_usd × 100 */
-  funding_progress_percent: number;
-  is_flagged_for_review: boolean;
-  is_hidden: boolean;
-  sample_labels: string[];
-  deadline_fundraising: string | null;
-  /** null if no active deadline */
-  time_remaining_seconds: number | null;
-  created_at: string;
+// (already imported at top)
+
+export class CampaignListDto {
+  @IsString()
+  id!: string;
+
+  @IsString()
+  title!: string;
+
+  @IsEnum([
+    'created',
+    'funded',
+    'samples_sent',
+    'results_published',
+    'resolved',
+    'refunded',
+  ] as const)
+  status!: CampaignStatus;
+
+  // creator is a plain object, no nested DTO
+  creator!: { id: string; username: string | null };
+
+  @IsNumber()
+  amount_requested_usd!: number;
+
+  @IsNumber()
+  current_funding_usd!: number;
+
+  @IsNumber()
+  funding_threshold_usd!: number;
+
+  @IsNumber()
+  funding_progress_percent!: number;
+
+  @IsBoolean()
+  is_flagged_for_review!: boolean;
+
+  @IsBoolean()
+  is_hidden!: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  sample_labels!: string[];
+
+  @IsOptional()
+  @IsString()
+  deadline_fundraising!: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  time_remaining_seconds!: number | null;
+
+  @IsString()
+  created_at!: string;
 }
 
-export interface CampaignDetailDto {
-  id: string;
-  title: string;
-  description: string;
-  status: CampaignStatus;
-  creator: { id: string; username: string | null; successful_campaigns: number };
-  verification_code: number;
-  amount_requested_usd: number;
-  estimated_lab_cost_usd: number;
-  current_funding_usd: number;
-  funding_threshold_usd: number;
-  funding_threshold_percent: number;
-  funding_progress_percent: number;
-  platform_fee_percent: number;
-  is_flagged_for_review: boolean;
-  flagged_reason: string | null;
-  is_itemized: boolean;
-  itemization_data: unknown;
-  samples: SampleDto[];
-  updates: CampaignUpdateDto[];
-  reactions: ReactionCountsDto;
-  /** null if unauthenticated or no reaction */
-  my_reaction: ReactionType | null;
-  deadlines: {
+export class CampaignDetailDto {
+  @IsString()
+  id!: string;
+
+  @IsString()
+  title!: string;
+
+  @IsString()
+  description!: string;
+
+  @IsEnum([
+    'created',
+    'funded',
+    'samples_sent',
+    'results_published',
+    'resolved',
+    'refunded',
+  ] as const)
+  status!: CampaignStatus;
+
+  // creator is a plain object, no nested DTO
+  creator!: { id: string; username: string | null; successful_campaigns: number };
+
+  @IsNumber()
+  verification_code!: number;
+
+  @IsNumber()
+  amount_requested_usd!: number;
+
+  @IsNumber()
+  estimated_lab_cost_usd!: number;
+
+  @IsNumber()
+  current_funding_usd!: number;
+
+  @IsNumber()
+  funding_threshold_usd!: number;
+
+  @IsNumber()
+  funding_threshold_percent!: number;
+
+  @IsNumber()
+  funding_progress_percent!: number;
+
+  @IsNumber()
+  platform_fee_percent!: number;
+
+  @IsBoolean()
+  is_flagged_for_review!: boolean;
+
+  @IsOptional()
+  @IsString()
+  flagged_reason!: string | null;
+
+  @IsBoolean()
+  is_itemized!: boolean;
+
+  itemization_data!: unknown;
+
+  @IsBoolean()
+  is_hidden!: boolean;
+
+  @IsArray()
+  samples!: SampleDto[];
+
+  @IsArray()
+  updates!: CampaignUpdateDto[];
+
+  reactions!: ReactionCountsDto;
+
+  @IsOptional()
+  @IsEnum(['thumbs_up', 'rocket', 'praising_hands', 'mad', 'fire'] as const)
+  my_reaction!: ReactionType | null;
+
+  deadlines!: {
     fundraising: string | null;
     ship_samples: string | null;
     publish_results: string | null;
   };
-  timestamps: {
+
+  timestamps!: {
     created_at: string;
     funded_at: string | null;
     locked_at: string | null;
@@ -284,7 +373,10 @@ export interface CampaignDetailDto {
     resolved_at: string | null;
     refunded_at: string | null;
   };
-  refund_reason: string | null;
+
+  @IsOptional()
+  @IsString()
+  refund_reason!: string | null;
 }
 
 export interface LabCostBreakdownDto {

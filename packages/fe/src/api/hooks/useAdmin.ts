@@ -15,6 +15,17 @@ import type {
 import { adminApi } from '../apiClient';
 import { queryKeys } from '../queryKeys';
 
+/** Admin: get users with optional search */
+export function useAdminUsers(search?: string) {
+  return useQuery({
+    queryKey: queryKeys.admin.users(search),
+    queryFn: async () => {
+      const res = await adminApi.getUsers(search ?? '');
+      return res.data;
+    },
+  });
+}
+
 /** Admin: all campaigns with optional filters */
 export function useAdminCampaigns(
   filters: { status?: string; flagged?: boolean; page?: number } = {}
@@ -72,6 +83,20 @@ export function useAdminHideCampaign() {
   });
 }
 
+/** Admin: flag/unflag a campaign */
+export function useAdminFlagCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, dto }: { id: string; dto: { flagged: boolean; reason?: string } }) => {
+      const res = await adminApi.flagCampaign(id, dto);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.admin.campaigns({}) });
+    },
+  });
+}
+
 /** Admin: verify a COA */
 export function useAdminVerifyCoa() {
   const qc = useQueryClient();
@@ -94,8 +119,8 @@ export function useAdminBanUser() {
       const res = await adminApi.banUser(id, dto);
       return res.data;
     },
-    onSuccess: (_data, { id }) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.admin.users(id) });
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
   });
 }
@@ -108,8 +133,8 @@ export function useAdminManageClaim() {
       const res = await adminApi.manageClaim(id, dto);
       return res.data;
     },
-    onSuccess: (_data, { id }) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.admin.users(id) });
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
   });
 }

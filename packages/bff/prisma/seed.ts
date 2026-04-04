@@ -11,6 +11,8 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -95,6 +97,37 @@ async function main(): Promise<void> {
   }
 
   console.log('\n✅ Seed complete.');
+
+  // ── Admin Account ──────────────────────────────────────────────────────────
+  // Create or upsert an admin user
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('base64');
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
+  let adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!adminUser) {
+    adminUser = await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password_hash: adminPasswordHash,
+        email_verified: true,
+        username: 'admin',
+      },
+    });
+    console.log(`✔ admin user created: email=${adminEmail} password=${adminPassword}`);
+  } else {
+    console.log('  admin user already exists — skipped');
+  }
+  // Grant admin claim
+  await prisma.userClaim.upsert({
+    where: { user_id_claim_type: { user_id: adminUser.id, claim_type: 'admin' } },
+    update: {},
+    create: {
+      user_id: adminUser.id,
+      claim_type: 'admin',
+      granted_by_user_id: adminUser.id,
+    },
+  });
+  console.log('✔ admin claim granted');
 
   // ── BT Labs ─────────────────────────────────────────────────────────────────
   // A real system UUID used as the seed "actor" for audit columns that require a

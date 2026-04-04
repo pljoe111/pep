@@ -63,6 +63,34 @@ export class AdminService {
     return { data: details, total, page, limit };
   }
 
+  async flagCampaign(
+    adminUserId: string,
+    campaignId: string,
+    flagged: boolean,
+    reason?: string
+  ): Promise<CampaignDetailDto> {
+    const campaign = await this.prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (campaign === null) throw new NotFoundError('Campaign not found');
+
+    await this.prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        is_flagged_for_review: flagged,
+        flagged_reason: flagged ? (reason ?? null) : null,
+      },
+    });
+
+    this.audit.log({
+      userId: adminUserId,
+      action: flagged ? 'admin.campaign_flagged' : 'admin.campaign_unflagged',
+      entityType: 'campaign',
+      entityId: campaignId,
+      changes: { flagged, reason: reason ?? null },
+    });
+
+    return this.campaignService.getCampaignDetail(campaignId);
+  }
+
   async forceRefund(
     adminUserId: string,
     campaignId: string,
@@ -100,6 +128,28 @@ export class AdminService {
     });
 
     return this.campaignService.getCampaignDetail(campaignId);
+  }
+
+  // ─── User management ──────────────────────────────────────────────────────
+
+  async getUsers(search?: string, page = 1, limit = 20): Promise<PaginatedResponseDto<UserDto>> {
+    const skip = (page - 1) * limit;
+    const where = search
+      ? {
+          OR: [
+            { email: { contains: search, mode: 'insensitive' as const } },
+            { username: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: limit }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    const dtos = await Promise.all(users.map((u) => this.buildUserDto(u.id)));
+    return { data: dtos, total, page, limit };
   }
 
   // ─── COA verification ────────────────────────────────────────────────────
