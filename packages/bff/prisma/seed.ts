@@ -95,6 +95,77 @@ async function main(): Promise<void> {
   }
 
   console.log('\n✅ Seed complete.');
+
+  // ── BT Labs ─────────────────────────────────────────────────────────────────
+  // A real system UUID used as the seed "actor" for audit columns that require a
+  // user ID but have no FK constraint. Never corresponds to a real user row.
+  const SEED_ACTOR_ID = '00000000-0000-0000-0000-000000000001';
+  const seedNow = new Date();
+
+  const btLab = await prisma.lab.upsert({
+    where: { name: 'BT Labs' },
+    update: { is_approved: true, approved_by_user_id: SEED_ACTOR_ID, approved_at: seedNow },
+    create: {
+      name: 'BT Labs',
+      country: 'United States',
+      is_approved: true,
+      approved_by_user_id: SEED_ACTOR_ID,
+      approved_at: seedNow,
+    },
+  });
+  console.log(`✔ lab["BT Labs"] upserted (${btLab.id})`);
+
+  // ID/P/P — Identity, Purity, Potency
+  const idppTest = await prisma.test.upsert({
+    where: { name: 'ID/P/P' },
+    update: {},
+    create: {
+      name: 'ID/P/P',
+      description:
+        'Identity, Purity, and Potency testing for peptide samples. Requires 1 vial per sample.',
+      is_active: true,
+      created_by_user_id: SEED_ACTOR_ID,
+    },
+  });
+  console.log(`✔ test["ID/P/P"] upserted (${idppTest.id})`);
+
+  // Endotoxins — USP <85> LAL method
+  const endotoxinsTest = await prisma.test.upsert({
+    where: { name: 'Endotoxins' },
+    update: {},
+    create: {
+      name: 'Endotoxins',
+      description: 'Bacterial endotoxin testing (USP <85> LAL method). Requires 1 vial per sample.',
+      usp_code: 'USP<85>',
+      is_active: true,
+      created_by_user_id: SEED_ACTOR_ID,
+    },
+  });
+  console.log(`✔ test["Endotoxins"] upserted (${endotoxinsTest.id})`);
+
+  await prisma.labTest.upsert({
+    where: { lab_id_test_id: { lab_id: btLab.id, test_id: idppTest.id } },
+    update: { price_usd: 125, typical_turnaround_days: 14 },
+    create: {
+      lab_id: btLab.id,
+      test_id: idppTest.id,
+      price_usd: 125,
+      typical_turnaround_days: 14,
+    },
+  });
+  console.log('✔ lab_test[BT Labs × ID/P/P] = $125 upserted');
+
+  await prisma.labTest.upsert({
+    where: { lab_id_test_id: { lab_id: btLab.id, test_id: endotoxinsTest.id } },
+    update: { price_usd: 250, typical_turnaround_days: 14 },
+    create: {
+      lab_id: btLab.id,
+      test_id: endotoxinsTest.id,
+      price_usd: 250,
+      typical_turnaround_days: 14,
+    },
+  });
+  console.log('✔ lab_test[BT Labs × Endotoxins] = $250 upserted');
 }
 
 main()

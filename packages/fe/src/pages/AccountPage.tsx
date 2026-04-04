@@ -98,6 +98,28 @@ export function AccountPage(): React.ReactElement {
           )}
         </Card>
 
+        {/* My Campaigns link */}
+        <Card padding="md" className="mb-4" onClick={() => void navigate('/my-campaigns')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-text">My Campaigns</p>
+              <p className="text-xs text-text-2 mt-0.5">Manage and track your campaigns</p>
+            </div>
+            <svg
+              className="w-5 h-5 text-text-3"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </Card>
+
         {/* Admin link */}
         {user.claims.includes('admin') && (
           <Card padding="md" className="mb-4" onClick={() => void navigate('/admin')}>

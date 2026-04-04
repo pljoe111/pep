@@ -56,6 +56,10 @@ export class ContributionService {
       throw new ConflictError('Campaign is not accepting contributions');
     }
 
+    if (campaign.is_flagged_for_review) {
+      throw new ConflictError('Campaign is under review and not accepting contributions');
+    }
+
     const globalMinimums = await this.configService.get<GlobalMinimumsConfig>('global_minimums');
     if (dto.amount < globalMinimums.min_contribution_usd) {
       throw new ValidationError(

@@ -53,13 +53,9 @@ function ContributeSheet({
   onClose: () => void;
 }): React.ReactElement {
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState<'usdc' | 'usdt'>('usdc');
   const { data: balance } = useWalletBalance();
   const { mutateAsync: contribute, isPending } = useContribute(campaignId);
   const toast = useToast();
-
-  // Option B: unified single balance — currency is still tracked on the contribution record
-  const currentBalance = balance?.balance;
 
   const handleSubmit = async (): Promise<void> => {
     const parsedAmount = parseFloat(amount);
@@ -68,7 +64,8 @@ function ContributeSheet({
       return;
     }
     try {
-      await contribute({ amount: parsedAmount, currency });
+      // Option B: unified balance — always settle as USDT on-chain
+      await contribute({ amount: parsedAmount, currency: 'usdt' });
       toast.success('Contribution submitted!');
       onClose();
       setAmount('');
@@ -80,38 +77,13 @@ function ContributeSheet({
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Contribute">
       <div className="space-y-5">
-        {/* Balance display */}
+        {/* Unified balance display */}
         {balance && (
           <div className="bg-primary-l rounded-xl p-3 text-sm">
             <span className="text-text-2">Your balance: </span>
-            <span className="font-bold text-primary">
-              {formatUSD(currentBalance ?? 0)} {currency.toUpperCase()}
-            </span>
+            <span className="font-bold text-primary">{formatUSD(balance.balance ?? 0)}</span>
           </div>
         )}
-
-        {/* Currency selector */}
-        <div>
-          <label className="text-sm font-medium text-text block mb-2">Currency</label>
-          <div className="flex gap-2">
-            {(['usdc', 'usdt'] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCurrency(c)}
-                className={[
-                  'flex-1 py-3 rounded-xl border-2 text-sm font-semibold transition-colors',
-                  'min-h-[44px]',
-                  currency === c
-                    ? 'border-primary bg-primary-l text-primary'
-                    : 'border-border text-text-2',
-                ].join(' ')}
-              >
-                {c.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Amount input */}
         <div>
@@ -137,7 +109,7 @@ function ContributeSheet({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mb-1 sm:mb-6">
           <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
             Cancel
           </Button>
@@ -229,7 +201,9 @@ export function CampaignDetailPage(): React.ReactElement {
   }
 
   const progress = campaign.funding_progress_percent ?? 0;
-  const canContribute = campaign.status === 'created' || campaign.status === 'funded';
+  const canContribute =
+    (campaign.status === 'created' || campaign.status === 'funded') &&
+    !campaign.is_flagged_for_review;
   const updates = updatesData?.data ?? [];
 
   const tabContent = [

@@ -348,6 +348,25 @@ describe('ContributionService.contribute', () => {
     ).rejects.toMatchObject({ name: 'ConflictError' });
   });
 
+  it('throws ConflictError when campaign is flagged for review', async () => {
+    const creatorId = await seedUser();
+    const contributorId = await seedUser();
+    await prisma.ledgerAccount.update({
+      where: { user_id: contributorId },
+      data: { balance: 100 },
+    });
+    const campaignId = await seedCampaign(creatorId, 500);
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { is_flagged_for_review: true },
+    });
+
+    const dto: ContributeDto = { amount: 10, currency: 'usdc' };
+    await expect(
+      service.contribute(contributorId, campaignId, dto, true, false)
+    ).rejects.toMatchObject({ name: 'ConflictError' });
+  });
+
   it('throws ValidationError when amount is below global minimum', async () => {
     const creatorId = await seedUser();
     const contributorId = await seedUser();

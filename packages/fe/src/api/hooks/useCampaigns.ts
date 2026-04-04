@@ -3,7 +3,12 @@
 // Updates: Refetch on stale, manual invalidation on mutation success
 
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import type { AddReactionDto, ContributeDto, CreateCampaignDto } from 'api-client';
+import type {
+  AddReactionDto,
+  ContributeDto,
+  CreateCampaignDto,
+  UpdateCampaignDto,
+} from 'api-client';
 import { campaignsApi } from '../apiClient';
 import { queryKeys } from '../queryKeys';
 import type { CampaignFilters } from '../queryKeys';
@@ -115,6 +120,34 @@ export function useCostEstimate(samplesJson: string, enabled: boolean) {
     },
     enabled: enabled && Boolean(samplesJson),
     staleTime: 30_000,
+  });
+}
+
+/** Update a campaign's title / description (only allowed in 'created' status) */
+export function useUpdateCampaign(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: UpdateCampaignDto) => {
+      const res = await campaignsApi.updateCampaign(campaignId, dto);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+    },
+  });
+}
+
+/** Delete a campaign (only allowed in 'created' status with $0 contributions) */
+export function useDeleteCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (campaignId: string) => {
+      await campaignsApi.deleteCampaign(campaignId);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+    },
   });
 }
 

@@ -5,6 +5,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { HomePage } from '../pages/HomePage';
 import { CampaignDetailPage } from '../pages/CampaignDetailPage';
 import { CreateCampaignPage } from '../pages/CreateCampaignPage';
+import { MyCampaignsPage } from '../pages/MyCampaignsPage';
 import { WalletPage } from '../pages/WalletPage';
 import { AdminPage } from '../pages/AdminPage';
 import { LoginPage } from '../pages/LoginPage';
@@ -89,6 +90,14 @@ function AppRoutes(): React.ReactElement {
         element={
           <ProtectedRoute>
             <WalletPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-campaigns"
+        element={
+          <ProtectedRoute>
+            <MyCampaignsPage />
           </ProtectedRoute>
         }
       />
