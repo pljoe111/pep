@@ -1,6 +1,6 @@
 // State: Public user profile page at /users/:id
-// Why here: Standalone page for viewing any user's public stats
-// Updates: Fetches PublicUserProfileDto via GET /users/:id/profile, shows user's campaigns for admins
+// Why here: Standalone page for viewing any user's public stats and campaigns
+// Updates: Shows campaigns for all visitors, not just admins
 
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -12,31 +12,33 @@ import { Avatar } from '../components/ui/Avatar';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
-import { usersApi } from '../api/apiClient';
+import { usersApi, campaignsApi } from '../api/apiClient';
 import { queryKeys } from '../api/queryKeys';
 import { formatUSD } from '../lib/formatters';
 import { useAuth } from '../hooks/useAuth';
-import { useAdminUserCampaigns } from '../api/hooks/useAdmin';
 import { campaignStatusVariant, campaignStatusLabel } from '../lib/badgeUtils';
-import type { CampaignDetailDto } from 'api-client';
+import type { CampaignListDto } from 'api-client';
 
 function UserCampaignsSection({ userId }: { userId: string }): React.ReactElement {
-  const { user } = useAuth();
-  const isAdmin = (user?.claims ?? []).includes('admin');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  const { data: campaignsResp, isLoading: campaignsLoading } = useAdminUserCampaigns(userId, {
-    status: statusFilter || undefined,
+  const { data: campaignsResp, isLoading: campaignsLoading } = useQuery({
+    queryKey: queryKeys.campaigns.byCreator(userId),
+    queryFn: async () => {
+      const res = await campaignsApi.getAllCampaigns(
+        statusFilter || undefined,
+        undefined,
+        undefined,
+        1,
+        50
+      );
+      return res.data;
+    },
   });
 
-  const campaigns: CampaignDetailDto[] =
-    campaignsResp && typeof campaignsResp === 'object' && 'data' in campaignsResp
-      ? (campaignsResp as { data: CampaignDetailDto[] }).data
-      : [];
-
-  if (!isAdmin) {
-    return <></>;
-  }
+  // Filter campaigns by creator on the client side since the API doesn't support creator filter
+  const allCampaigns: CampaignListDto[] = campaignsResp?.data ?? [];
+  const campaigns = allCampaigns.filter((c) => c.creator?.id === userId);
 
   return (
     <div className="mb-6">
@@ -141,6 +143,8 @@ function StatCard({
 export function UserPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isOwnProfile = user?.id === id;
 
   const {
     data: profile,
@@ -199,6 +203,11 @@ export function UserPage(): React.ReactElement {
                 {profile.username ?? 'Anonymous'}
               </h1>
               <p className="text-sm text-primary-l mt-0.5">Member since {memberSince}</p>
+              {isOwnProfile && (
+                <Link to="/account" className="text-xs text-white underline mt-1 inline-block">
+                  Edit profile
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -245,7 +254,7 @@ export function UserPage(): React.ReactElement {
           </div>
         </div>
 
-        {/* Admin-only campaigns section */}
+        {/* Campaigns section — visible to everyone */}
         <div className="px-4">{id && <UserCampaignsSection userId={id} />}</div>
       </PageContainer>
     </AppShell>

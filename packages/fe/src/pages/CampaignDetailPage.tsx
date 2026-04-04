@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import type { ReactionType } from 'api-client';
+import React, { useState, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import type { ReactionType, CampaignDetailDto } from 'api-client';
 import { AppShell } from '../components/layout/AppShell';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Badge } from '../components/ui/Badge';
@@ -19,9 +19,14 @@ import {
   useCampaignReactions,
   useCampaignCoas,
   useCampaignUpdates,
+  useCampaignContributions,
   useAddReaction,
   useRemoveReaction,
   useContribute,
+  useLockCampaign,
+  useShipSamples,
+  useAddCampaignUpdate,
+  useUploadCoa,
 } from '../api/hooks/useCampaigns';
 import { useWalletBalance } from '../api/hooks/useWallet';
 import { useAuth } from '../hooks/useAuth';
@@ -64,7 +69,6 @@ function ContributeSheet({
       return;
     }
     try {
-      // Option B: unified balance — always settle as USDT on-chain
       await contribute({ amount: parsedAmount, currency: 'usdt' });
       toast.success('Contribution submitted!');
       onClose();
@@ -77,7 +81,6 @@ function ContributeSheet({
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Contribute">
       <div className="space-y-5">
-        {/* Unified balance display */}
         {balance && (
           <div className="bg-primary-l rounded-xl p-3 text-sm">
             <span className="text-text-2">Your balance: </span>
@@ -85,7 +88,6 @@ function ContributeSheet({
           </div>
         )}
 
-        {/* Amount input */}
         <div>
           <label htmlFor="contribute-amount" className="text-sm font-medium text-text block mb-2">
             Amount (USD)
@@ -108,7 +110,6 @@ function ContributeSheet({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3 mb-1 sm:mb-6">
           <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
             Cancel
@@ -128,11 +129,311 @@ function ContributeSheet({
   );
 }
 
+function LockCampaignSheet({
+  campaignId,
+  campaign,
+  isOpen,
+  onClose,
+}: {
+  campaignId: string;
+  campaign: CampaignDetailDto;
+  isOpen: boolean;
+  onClose: () => void;
+}): React.ReactElement {
+  const { mutateAsync: lockCampaign, isPending } = useLockCampaign(campaignId);
+  const toast = useToast();
+
+  const handleLock = async (): Promise<void> => {
+    try {
+      await lockCampaign();
+      toast.success('Campaign locked successfully');
+      onClose();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to lock campaign');
+    }
+  };
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Lock Campaign">
+      <div className="space-y-5">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-sm text-warning font-medium mb-1">This action cannot be undone.</p>
+          <p className="text-xs text-text-2">
+            Locking this campaign will close it to further contributions. Current funding will be
+            preserved and contributors will be refunded if the goal is not met.
+          </p>
+        </div>
+
+        <Card padding="sm">
+          <div className="flex justify-between text-sm">
+            <span className="text-text-2">Current funding</span>
+            <span className="font-bold text-text">{formatUSD(campaign.current_funding_usd)}</span>
+          </div>
+          <div className="flex justify-between text-sm mt-1">
+            <span className="text-text-2">Status</span>
+            <Badge variant={campaignStatusVariant(campaign.status)}>
+              {campaignStatusLabel(campaign.status)}
+            </Badge>
+          </div>
+        </Card>
+
+        <div className="flex gap-3 mb-1 sm:mb-6">
+          <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="lg"
+            fullWidth
+            loading={isPending}
+            onClick={() => void handleLock()}
+          >
+            Lock Campaign
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function ShipSamplesSheet({
+  campaignId,
+  isOpen,
+  onClose,
+}: {
+  campaignId: string;
+  isOpen: boolean;
+  onClose: () => void;
+}): React.ReactElement {
+  const { mutateAsync: shipSamples, isPending } = useShipSamples(campaignId);
+  const toast = useToast();
+
+  const handleShip = async (): Promise<void> => {
+    try {
+      await shipSamples();
+      toast.success('Samples marked as shipped');
+      onClose();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark samples as shipped');
+    }
+  };
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Ship Samples">
+      <div className="space-y-5">
+        <div className="bg-primary-l rounded-xl p-4">
+          <p className="text-sm text-primary font-medium mb-1">Confirm shipment</p>
+          <p className="text-xs text-text-2">
+            This will mark all samples as shipped and notify contributors. Make sure all samples
+            have been sent to the lab before confirming.
+          </p>
+        </div>
+
+        <div className="flex gap-3 mb-1 sm:mb-6">
+          <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isPending}
+            onClick={() => void handleShip()}
+          >
+            Confirm Shipment
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function AddUpdateSheet({
+  campaignId,
+  isOpen,
+  onClose,
+}: {
+  campaignId: string;
+  isOpen: boolean;
+  onClose: () => void;
+}): React.ReactElement {
+  const [content, setContent] = useState('');
+  const { mutateAsync: addUpdate, isPending } = useAddCampaignUpdate(campaignId);
+  const toast = useToast();
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!content.trim()) {
+      toast.error('Please enter update content');
+      return;
+    }
+    try {
+      await addUpdate({ content: content.trim() });
+      toast.success('Update posted');
+      onClose();
+      setContent('');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add update');
+    }
+  };
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Add Update">
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="update-content" className="text-sm font-medium text-text block mb-2">
+            Update content
+          </label>
+          <textarea
+            id="update-content"
+            placeholder="Share progress with your supporters..."
+            rows={4}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full rounded-xl border border-border px-4 py-3 text-base text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none min-h-[44px]"
+          />
+        </div>
+
+        <div className="flex gap-3 mb-1 sm:mb-6">
+          <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isPending}
+            disabled={!content.trim()}
+            onClick={() => void handleSubmit()}
+          >
+            Post Update
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function UploadCoaSheet({
+  campaignId,
+  samples,
+  isOpen,
+  onClose,
+}: {
+  campaignId: string;
+  samples: CampaignDetailDto['samples'];
+  isOpen: boolean;
+  onClose: () => void;
+}): React.ReactElement {
+  const [selectedSample, setSelectedSample] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { mutateAsync: uploadCoa, isPending } = useUploadCoa(campaignId);
+  const toast = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Only PDF files are accepted');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async (): Promise<void> => {
+    if (!selectedSample) {
+      toast.error('Please select a sample');
+      return;
+    }
+    if (!selectedFile) {
+      toast.error('Please select a PDF file');
+      return;
+    }
+    try {
+      await uploadCoa({ sampleId: selectedSample, file: selectedFile });
+      toast.success('COA uploaded successfully');
+      onClose();
+      setSelectedSample('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload COA');
+    }
+  };
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Upload COA">
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="coa-sample" className="text-sm font-medium text-text block mb-2">
+            Select sample
+          </label>
+          <select
+            id="coa-sample"
+            value={selectedSample}
+            onChange={(e) => setSelectedSample(e.target.value)}
+            className="w-full rounded-xl border border-border px-4 py-3 text-base text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px]"
+          >
+            <option value="">Choose a sample...</option>
+            {(samples ?? []).map((sample) => (
+              <option key={sample.id} value={sample.id}>
+                {sample.sample_label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="coa-file" className="text-sm font-medium text-text block mb-2">
+            COA PDF file
+          </label>
+          <input
+            ref={fileInputRef}
+            id="coa-file"
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={handleFileChange}
+            className="w-full rounded-xl border border-border px-4 py-3 text-base text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px]"
+          />
+          {selectedFile && (
+            <p className="text-xs text-text-2 mt-2">
+              Selected: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3 mb-1 sm:mb-6">
+          <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isPending}
+            disabled={!selectedSample || !selectedFile}
+            onClick={() => void handleUpload()}
+          >
+            Upload COA
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 export function CampaignDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [showContributeSheet, setShowContributeSheet] = useState(false);
+  const [showLockSheet, setShowLockSheet] = useState(false);
+  const [showShipSheet, setShowShipSheet] = useState(false);
+  const [showAddUpdateSheet, setShowAddUpdateSheet] = useState(false);
+  const [showUploadCoaSheet, setShowUploadCoaSheet] = useState(false);
   const toast = useToast();
 
   const campaignId = id ?? '';
@@ -142,6 +443,7 @@ export function CampaignDetailPage(): React.ReactElement {
   const { data: reactions, refetch: refetchReactions } = useCampaignReactions(campaignId);
   const { data: coas } = useCampaignCoas(campaignId);
   const { data: updatesData } = useCampaignUpdates(campaignId);
+  const { data: contributionsResp } = useCampaignContributions(campaignId);
 
   const { mutateAsync: addReaction } = useAddReaction(campaignId);
   const { mutateAsync: removeReaction } = useRemoveReaction(campaignId);
@@ -201,10 +503,31 @@ export function CampaignDetailPage(): React.ReactElement {
   }
 
   const progress = campaign.funding_progress_percent ?? 0;
-  const canContribute =
+  const updates = updatesData?.data ?? [];
+  const contributions = contributionsResp?.data ?? [];
+
+  // Check if current user is the campaign creator
+  const isCreator = isAuthenticated && user?.id === campaign.creator?.id;
+
+  // Creator action availability based on campaign status
+  const canLock =
+    isCreator &&
     (campaign.status === 'created' || campaign.status === 'funded') &&
     !campaign.is_flagged_for_review;
-  const updates = updatesData?.data ?? [];
+  const canShipSamples = isCreator && campaign.status === 'funded';
+  const canAddUpdate = isCreator;
+  const canUploadCoa =
+    isCreator &&
+    (campaign.samples ?? []).length > 0 &&
+    (campaign.status === 'funded' ||
+      campaign.status === 'samples_sent' ||
+      campaign.status === 'results_published');
+
+  // Non-creators can contribute if campaign is open
+  const canContribute =
+    !isCreator &&
+    (campaign.status === 'created' || campaign.status === 'funded') &&
+    !campaign.is_flagged_for_review;
 
   const tabContent = [
     {
@@ -245,7 +568,6 @@ export function CampaignDetailPage(): React.ReactElement {
               </div>
               <p className="text-xs text-text-2 mb-1">Vendor: {sample.vendor_name}</p>
               <p className="text-xs text-text-2 mb-2">{sample.physical_description}</p>
-              {/* Claims */}
               {(sample.claims ?? []).map((claim) => (
                 <div key={claim.id} className="text-xs text-text-2 mb-1">
                   {claim.claim_type === 'mass'
@@ -253,7 +575,6 @@ export function CampaignDetailPage(): React.ReactElement {
                     : `Claim: ${claim.other_description ?? ''}`}
                 </div>
               ))}
-              {/* Tests */}
               {(sample.tests ?? []).length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {(sample.tests ?? []).map((test) => (
@@ -322,6 +643,46 @@ export function CampaignDetailPage(): React.ReactElement {
         </div>
       ),
     },
+    {
+      id: 'funding',
+      label: 'Funding',
+      content: (
+        <div className="space-y-3">
+          {contributions.length === 0 && (
+            <EmptyState
+              heading="No contributions yet"
+              subtext="Be the first to support this campaign!"
+            />
+          )}
+          {contributions.map((contribution) => (
+            <Card key={contribution.id} padding="sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar username={contribution.contributor.username} size="sm" />
+                  <div>
+                    <Link
+                      to={`/users/${contribution.contributor.id}`}
+                      className="font-semibold text-sm text-text hover:text-primary transition-colors"
+                    >
+                      {contribution.contributor.username ?? 'Anonymous'}
+                    </Link>
+                    <p className="text-xs text-text-3">
+                      {formatRelativeDate(contribution.contributed_at)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-sm text-primary">
+                    {formatUSD(contribution.amount_usd)}
+                  </p>
+                  <Badge variant="teal">{contribution.status}</Badge>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -356,9 +717,18 @@ export function CampaignDetailPage(): React.ReactElement {
           <div className="flex items-center gap-2 mb-4">
             <Avatar username={campaign.creator?.username} size="sm" />
             <div>
-              <p className="text-sm font-medium text-text">
-                {campaign.creator?.username ?? 'Anonymous'}
-              </p>
+              {campaign.creator?.id ? (
+                <Link
+                  to={`/users/${campaign.creator.id}`}
+                  className="text-sm font-medium text-text hover:text-primary transition-colors"
+                >
+                  {campaign.creator.username ?? 'Anonymous'}
+                </Link>
+              ) : (
+                <p className="text-sm font-medium text-text">
+                  {campaign.creator?.username ?? 'Anonymous'}
+                </p>
+              )}
               {campaign.creator?.successful_campaigns !== undefined && (
                 <p className="text-xs text-text-2">
                   {campaign.creator.successful_campaigns} successful campaigns
@@ -384,6 +754,102 @@ export function CampaignDetailPage(): React.ReactElement {
               </svg>
               <p className="text-sm text-warning font-medium">This campaign is under review</p>
             </div>
+          )}
+
+          {/* Creator actions — at the top for easy access */}
+          {isCreator && (
+            <Card padding="sm" className="mb-4">
+              <h3 className="text-xs font-medium text-text-2 uppercase tracking-wide mb-3">
+                Creator Actions
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {canLock && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    fullWidth
+                    onClick={() => setShowLockSheet(true)}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Lock
+                  </Button>
+                )}
+                {canShipSamples && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => setShowShipSheet(true)}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                    </svg>
+                    Ship
+                  </Button>
+                )}
+                {canAddUpdate && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => setShowAddUpdateSheet(true)}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Update
+                  </Button>
+                )}
+                {canUploadCoa && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => setShowUploadCoaSheet(true)}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Upload COA
+                  </Button>
+                )}
+              </div>
+            </Card>
           )}
 
           {/* Funding progress */}
@@ -436,37 +902,39 @@ export function CampaignDetailPage(): React.ReactElement {
             )}
           </Card>
 
-          {/* Reaction bar */}
-          <Card padding="sm" className="mb-4">
-            <div className="flex justify-around">
-              {REACTION_TYPES.map((type) => {
-                const count =
-                  (reactions ?? campaign.reactions)?.[type as keyof typeof reactions] ?? 0;
-                const isActive = campaign.my_reaction === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => void handleReaction(type)}
-                    className={[
-                      'flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors',
-                      'min-h-[44px] min-w-[44px]',
-                      isActive ? 'bg-primary-l' : 'hover:bg-surface-a',
-                    ].join(' ')}
-                    aria-label={`${type} reaction (${count as number})`}
-                    aria-pressed={isActive}
-                  >
-                    <span className="text-xl">{REACTION_EMOJIS[type]}</span>
-                    <span
-                      className={`text-xs font-semibold ${isActive ? 'text-primary' : 'text-text-2'}`}
+          {/* Reaction bar — hidden for creator */}
+          {!isCreator && (
+            <Card padding="sm" className="mb-4">
+              <div className="flex justify-around">
+                {REACTION_TYPES.map((type) => {
+                  const count =
+                    (reactions ?? campaign.reactions)?.[type as keyof typeof reactions] ?? 0;
+                  const isActive = campaign.my_reaction === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => void handleReaction(type)}
+                      className={[
+                        'flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors',
+                        'min-h-[44px] min-w-[44px]',
+                        isActive ? 'bg-primary-l' : 'hover:bg-surface-a',
+                      ].join(' ')}
+                      aria-label={`${type} reaction (${count as number})`}
+                      aria-pressed={isActive}
                     >
-                      {count as number}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
+                      <span className="text-xl">{REACTION_EMOJIS[type]}</span>
+                      <span
+                        className={`text-xs font-semibold ${isActive ? 'text-primary' : 'text-text-2'}`}
+                      >
+                        {count as number}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Email verification prompt */}
@@ -482,7 +950,7 @@ export function CampaignDetailPage(): React.ReactElement {
         <Tabs tabs={tabContent} defaultTab="overview" />
       </PageContainer>
 
-      {/* Sticky CTA */}
+      {/* Sticky CTA — hidden for creator */}
       {canContribute && (
         <div className="fixed bottom-16 left-0 right-0 z-30 px-4 pb-2 bg-gradient-to-t from-bg to-transparent pt-4">
           <Button variant="primary" size="lg" fullWidth onClick={handleContributeClick}>
@@ -491,11 +959,35 @@ export function CampaignDetailPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Contribute sheet */}
+      {/* Sheets */}
       <ContributeSheet
         campaignId={campaignId}
         isOpen={showContributeSheet}
         onClose={() => setShowContributeSheet(false)}
+      />
+      {campaign && (
+        <LockCampaignSheet
+          campaignId={campaignId}
+          campaign={campaign}
+          isOpen={showLockSheet}
+          onClose={() => setShowLockSheet(false)}
+        />
+      )}
+      <ShipSamplesSheet
+        campaignId={campaignId}
+        isOpen={showShipSheet}
+        onClose={() => setShowShipSheet(false)}
+      />
+      <AddUpdateSheet
+        campaignId={campaignId}
+        isOpen={showAddUpdateSheet}
+        onClose={() => setShowAddUpdateSheet(false)}
+      />
+      <UploadCoaSheet
+        campaignId={campaignId}
+        samples={campaign.samples}
+        isOpen={showUploadCoaSheet}
+        onClose={() => setShowUploadCoaSheet(false)}
       />
     </AppShell>
   );

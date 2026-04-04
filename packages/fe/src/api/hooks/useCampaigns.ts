@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AddCampaignUpdateDto,
   AddReactionDto,
   ContributeDto,
   CreateCampaignDto,
@@ -205,6 +206,78 @@ export function useContribute(campaignId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
       void qc.invalidateQueries({ queryKey: queryKeys.wallet.balance });
+    },
+  });
+}
+
+/** Lock a campaign (close early) — creator only */
+export function useLockCampaign(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await campaignsApi.lockCampaign(campaignId);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+    },
+  });
+}
+
+/** Ship samples — creator only */
+export function useShipSamples(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await campaignsApi.shipSamples(campaignId);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+    },
+  });
+}
+
+/** Add a campaign update — creator only */
+export function useAddCampaignUpdate(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: AddCampaignUpdateDto) => {
+      const res = await campaignsApi.addUpdate(campaignId, dto);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.updates(campaignId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+    },
+  });
+}
+
+/** View campaign contributions — creator only (paginated) */
+export function useCampaignContributions(campaignId: string, page = 1) {
+  return useQuery({
+    queryKey: queryKeys.campaigns.contributions(campaignId),
+    queryFn: async () => {
+      const res = await campaignsApi.getContributions(campaignId, page, 50);
+      return res.data;
+    },
+    enabled: Boolean(campaignId),
+  });
+}
+
+/** Upload COA for a sample — creator only */
+export function useUploadCoa(campaignId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sampleId, file }: { sampleId: string; file: File }) => {
+      const res = await campaignsApi.uploadCoa(campaignId, sampleId, file);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.coas(campaignId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
     },
   });
 }
