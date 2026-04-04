@@ -59,6 +59,17 @@ export class AdminController extends Controller {
     return this.adminService.getCampaigns(status, flagged, page, limit);
   }
 
+  /** GET /admin/users/:userId/campaigns */
+  @Get('users/{userId}/campaigns')
+  public async getUserCampaigns(
+    @Path() userId: string,
+    @Query() status?: string,
+    @Query() page?: number,
+    @Query() limit?: number
+  ): Promise<PaginatedResponseDto<CampaignDetailDto>> {
+    return this.adminService.getCampaignsByUserId(userId, status, page, limit);
+  }
+
   /** POST /admin/campaigns/:id/refund */
   @Post('campaigns/{id}/refund')
   public async refundCampaign(

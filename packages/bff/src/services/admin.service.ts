@@ -63,6 +63,30 @@ export class AdminService {
     return { data: details, total, page, limit };
   }
 
+  async getCampaignsByUserId(
+    userId: string,
+    status?: string,
+    page = 1,
+    limit = 20
+  ): Promise<PaginatedResponseDto<CampaignDetailDto>> {
+    const skip = (page - 1) * limit;
+    const where: Prisma.CampaignWhereInput = {
+      creator_id: userId,
+      ...(status ? { status: status as Prisma.EnumCampaignStatusFilter } : {}),
+    };
+
+    const [campaigns, total] = await Promise.all([
+      this.prisma.campaign.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: limit }),
+      this.prisma.campaign.count({ where }),
+    ]);
+
+    const details = await Promise.all(
+      campaigns.map((c) => this.campaignService.getCampaignDetail(c.id))
+    );
+
+    return { data: details, total, page, limit };
+  }
+
   async flagCampaign(
     adminUserId: string,
     campaignId: string,

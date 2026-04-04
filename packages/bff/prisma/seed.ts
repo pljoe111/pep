@@ -74,6 +74,11 @@ async function main(): Promise<void> {
       value: { value: 10_485_760 }, // 10 MB
       description: 'Maximum file size for COA uploads in bytes.',
     },
+    {
+      key: 'default_sweep_wallet',
+      value: { address: '' },
+      description: 'Default Solana wallet address for fee sweeps.',
+    },
   ];
 
   for (const row of rows) {

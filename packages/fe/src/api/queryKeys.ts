@@ -26,6 +26,7 @@ export const queryKeys = {
     estimate: (samples: string) => ['campaigns', 'estimate', samples] as const,
     verificationCode: ['campaigns', 'verification-code'] as const,
     mine: (filters: CampaignFilters) => ['campaigns', 'mine', filters] as const,
+    byCreator: (creatorId: string) => ['campaigns', 'byCreator', creatorId] as const,
   },
   wallet: {
     balance: ['wallet', 'balance'] as const,
@@ -51,6 +52,8 @@ export const queryKeys = {
       ['admin', 'campaigns', filters] as const,
     config: ['admin', 'config'] as const,
     users: (search?: string) => ['admin', 'users', search ?? ''] as const,
+    userCampaigns: (userId: string, filters: { status?: string; page?: number }) =>
+      ['admin', 'users', userId, 'campaigns', filters] as const,
   },
   users: {
     profile: (id: string) => ['users', id, 'profile'] as const,

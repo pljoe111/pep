@@ -44,6 +44,21 @@ export function useAdminCampaigns(
   });
 }
 
+/** Admin: get user's campaigns */
+export function useAdminUserCampaigns(
+  userId: string,
+  filters: { status?: string; page?: number } = {}
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.userCampaigns(userId, filters),
+    queryFn: async () => {
+      const res = await adminApi.getUserCampaigns(userId, filters.status, filters.page ?? 1, 20);
+      return res.data;
+    },
+    enabled: Boolean(userId),
+  });
+}
+
 /** Admin: platform config */
 export function useAdminConfig() {
   return useQuery({

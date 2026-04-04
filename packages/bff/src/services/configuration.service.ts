@@ -49,6 +49,10 @@ export interface MaxFileSizeConfig {
   value: number;
 }
 
+export interface DefaultSweepWalletConfig {
+  address: string;
+}
+
 // ─── Cache entry ──────────────────────────────────────────────────────────────
 
 interface CacheEntry {
