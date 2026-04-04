@@ -206,11 +206,17 @@ export class CampaignService {
       });
 
       for (const sampleDto of dto.samples) {
+        const purchaseDate = new Date(sampleDto.purchase_date);
+        if (Number.isNaN(purchaseDate.getTime())) {
+          throw new ValidationError(
+            `Sample "${sampleDto.sample_label}" has an invalid purchase_date`
+          );
+        }
         const sample = await tx.sample.create({
           data: {
             campaign_id: campaignId,
             vendor_name: sampleDto.vendor_name,
-            purchase_date: new Date(sampleDto.purchase_date),
+            purchase_date: purchaseDate,
             physical_description: sampleDto.physical_description,
             sample_label: sampleDto.sample_label,
             target_lab_id: sampleDto.target_lab_id,
@@ -335,7 +341,15 @@ export class CampaignService {
     const campaign = await this.findCampaignOrThrow(campaignId);
     if (campaign.creator_id !== userId) throw new AuthorizationError('Not your campaign');
     if (campaign.status !== 'created') throw new ConflictError('Campaign is not in created status');
-    if (campaign.current_funding_usd.lt(campaign.funding_threshold_usd)) {
+
+    // Effective threshold is the minimum of campaign threshold and global minimum
+    const globalMinimums = await this.configService.get<GlobalMinimumsConfig>('global_minimums');
+    const globalMinThreshold = new Prisma.Decimal(globalMinimums.min_funding_threshold_usd);
+    const effectiveThreshold = campaign.funding_threshold_usd.lt(globalMinThreshold)
+      ? campaign.funding_threshold_usd
+      : globalMinThreshold;
+
+    if (campaign.current_funding_usd.lt(effectiveThreshold)) {
       throw new ConflictError('Funding threshold not yet reached');
     }
 
@@ -834,6 +848,13 @@ export class CampaignService {
       ? 0
       : Number(campaign.current_funding_usd.div(campaign.funding_threshold_usd).mul(100));
 
+    // Effective lock threshold: min of campaign threshold and global minimum
+    const globalMinimums = await this.configService.get<GlobalMinimumsConfig>('global_minimums');
+    const globalMinThreshold = new Prisma.Decimal(globalMinimums.min_funding_threshold_usd);
+    const effectiveLockThreshold = campaign.funding_threshold_usd.lt(globalMinThreshold)
+      ? campaign.funding_threshold_usd
+      : globalMinThreshold;
+
     return {
       id: campaign.id,
       title: campaign.title,
@@ -850,6 +871,7 @@ export class CampaignService {
       current_funding_usd: Number(campaign.current_funding_usd),
       funding_threshold_usd: Number(campaign.funding_threshold_usd),
       funding_threshold_percent: campaign.funding_threshold_percent,
+      effective_lock_threshold_usd: Number(effectiveLockThreshold),
       funding_progress_percent: progressPct,
       platform_fee_percent: Number(campaign.platform_fee_percent),
       is_flagged_for_review: campaign.is_flagged_for_review,

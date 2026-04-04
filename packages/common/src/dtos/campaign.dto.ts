@@ -325,6 +325,10 @@ export class CampaignDetailDto {
   @IsNumber()
   funding_threshold_percent!: number;
 
+  /** Effective threshold for locking: min(funding_threshold_usd, global min_funding_threshold_usd) */
+  @IsNumber()
+  effective_lock_threshold_usd!: number;
+
   @IsNumber()
   funding_progress_percent!: number;
 

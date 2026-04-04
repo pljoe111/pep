@@ -143,6 +143,28 @@ function LockCampaignSheet({
   const { mutateAsync: lockCampaign, isPending } = useLockCampaign(campaignId);
   const toast = useToast();
 
+  const effectiveThreshold =
+    campaign.effective_lock_threshold_usd ?? campaign.funding_threshold_usd;
+  const hasMetFundingThreshold = campaign.current_funding_usd >= effectiveThreshold;
+  const isNotFlagged = !campaign.is_flagged_for_review;
+
+  const requirements = [
+    {
+      met: hasMetFundingThreshold,
+      label: `Funding threshold met`,
+      detail: `Need ${formatUSD(effectiveThreshold)}, currently have ${formatUSD(campaign.current_funding_usd)}`,
+    },
+    {
+      met: isNotFlagged,
+      label: 'Campaign not flagged for review',
+      detail: campaign.is_flagged_for_review
+        ? (campaign.flagged_reason ?? 'Campaign is flagged')
+        : null,
+    },
+  ];
+
+  const allRequirementsMet = requirements.every((r) => r.met);
+
   const handleLock = async (): Promise<void> => {
     try {
       await lockCampaign();
@@ -156,6 +178,7 @@ function LockCampaignSheet({
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Lock Campaign">
       <div className="space-y-5">
+        {/* Warning banner */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-sm text-warning font-medium mb-1">This action cannot be undone.</p>
           <p className="text-xs text-text-2">
@@ -164,11 +187,71 @@ function LockCampaignSheet({
           </p>
         </div>
 
+        {/* Requirements checklist */}
+        <div>
+          <h3 className="text-sm font-semibold text-text mb-3">Requirements</h3>
+          <div className="space-y-3">
+            {requirements.map((req, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                    req.met ? 'bg-success' : 'bg-border'
+                  }`}
+                >
+                  {req.met ? (
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-3 h-3 text-text-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${req.met ? 'text-text' : 'text-text-2'}`}>
+                    {req.label}
+                  </p>
+                  {!req.met && req.detail && (
+                    <p className="text-xs text-danger mt-0.5">{req.detail}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Current funding summary */}
         <Card padding="sm">
           <div className="flex justify-between text-sm">
             <span className="text-text-2">Current funding</span>
             <span className="font-bold text-text">{formatUSD(campaign.current_funding_usd)}</span>
           </div>
+          <div className="flex justify-between text-sm mt-1">
+            <span className="text-text-2">Campaign threshold</span>
+            <span className="font-bold text-text">{formatUSD(campaign.funding_threshold_usd)}</span>
+          </div>
+          {effectiveThreshold < campaign.funding_threshold_usd && (
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-text-2">Effective threshold</span>
+              <span className="font-bold text-primary">
+                {formatUSD(effectiveThreshold)}{' '}
+                <span className="text-xs font-normal text-text-3">(platform minimum)</span>
+              </span>
+            </div>
+          )}
           <div className="flex justify-between text-sm mt-1">
             <span className="text-text-2">Status</span>
             <Badge variant={campaignStatusVariant(campaign.status)}>
@@ -177,6 +260,7 @@ function LockCampaignSheet({
           </div>
         </Card>
 
+        {/* Action buttons */}
         <div className="flex gap-3 mb-1 sm:mb-6">
           <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
             Cancel
@@ -185,10 +269,11 @@ function LockCampaignSheet({
             variant="danger"
             size="lg"
             fullWidth
+            disabled={!allRequirementsMet}
             loading={isPending}
             onClick={() => void handleLock()}
           >
-            Lock Campaign
+            {allRequirementsMet ? 'Lock Campaign' : 'Requirements not met'}
           </Button>
         </div>
       </div>
@@ -510,10 +595,8 @@ export function CampaignDetailPage(): React.ReactElement {
   const isCreator = isAuthenticated && user?.id === campaign.creator?.id;
 
   // Creator action availability based on campaign status
-  const canLock =
-    isCreator &&
-    (campaign.status === 'created' || campaign.status === 'funded') &&
-    !campaign.is_flagged_for_review;
+  // Lock button shows for creators in 'created' status; sheet shows requirements
+  const isLockableStatus = isCreator && campaign.status === 'created';
   const canShipSamples = isCreator && campaign.status === 'funded';
   const canAddUpdate = isCreator;
   const canUploadCoa =
@@ -763,7 +846,7 @@ export function CampaignDetailPage(): React.ReactElement {
                 Creator Actions
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                {canLock && (
+                {isLockableStatus && (
                   <Button
                     variant="danger"
                     size="sm"

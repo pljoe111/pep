@@ -370,6 +370,21 @@ describe('CampaignService invalid state transitions', () => {
     });
   });
 
+  it('lockCampaign succeeds when funding threshold is zero (no funding required)', async () => {
+    const creatorId = await seedUser();
+    const campaignId = await seedCampaign(creatorId, 'created');
+    // Set funding threshold to 0 so locking is allowed immediately
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { funding_threshold_usd: 0 },
+    });
+    const result = await service.lockCampaign(creatorId, campaignId);
+    expect(result.status).toBe('funded');
+    const c = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+    expect(c.status).toBe('funded');
+    expect(c.locked_at).not.toBeNull();
+  });
+
   it('shipSamples throws ConflictError when status is not funded', async () => {
     const creatorId = await seedUser();
     const campaignId = await seedCampaign(creatorId, 'created');

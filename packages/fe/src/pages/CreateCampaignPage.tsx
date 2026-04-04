@@ -202,7 +202,7 @@ function SampleForm({ index, labs, onRemove }: SampleFormProps): React.ReactElem
     register,
     watch,
     control,
-    formState: { errors },
+    formState: { errors, touchedFields },
   } = useFormContext<WizardFormValues>();
 
   const selectedLabId = watch(`samples.${index}.target_lab_id`);
@@ -257,7 +257,20 @@ function SampleForm({ index, labs, onRemove }: SampleFormProps): React.ReactElem
           type="date"
           required
           error={sampleErrors?.purchase_date?.message}
-          {...register(`samples.${index}.purchase_date`, { required: 'Purchase date required' })}
+          valid={
+            !sampleErrors?.purchase_date &&
+            !!touchedFields.samples?.[index]?.purchase_date &&
+            !!watch(`samples.${index}.purchase_date`)
+          }
+          {...register(`samples.${index}.purchase_date`, {
+            required: 'Purchase date required',
+            validate: (value: string) => {
+              if (!value) return 'Purchase date required';
+              const parsed = new Date(value);
+              if (Number.isNaN(parsed.getTime())) return 'Invalid date';
+              return true;
+            },
+          })}
         />
         <Textarea
           label="Physical Description"
@@ -428,7 +441,37 @@ export function CreateCampaignPage(): React.ReactElement {
 
   const verificationCode = verificationCodeData?.code;
 
-  const handleNext = (): void => {
+  const handleNext = async (): Promise<void> => {
+    // Validate current step fields before allowing navigation
+    let fieldsToValidate: string[];
+    if (step === 0) {
+      fieldsToValidate = [
+        'title',
+        'description',
+        'amount_requested_usd',
+        'funding_threshold_percent',
+      ];
+    } else if (step === 1) {
+      // Validate all sample fields
+      const sampleCount = values.samples?.length ?? 0;
+      fieldsToValidate = [];
+      for (let i = 0; i < sampleCount; i++) {
+        fieldsToValidate.push(
+          `samples.${i}.vendor_name`,
+          `samples.${i}.purchase_date`,
+          `samples.${i}.sample_label`,
+          `samples.${i}.target_lab_id`
+        );
+      }
+    } else {
+      fieldsToValidate = [];
+    }
+
+    if (fieldsToValidate.length > 0) {
+      const valid = await methods.trigger(fieldsToValidate as never[]);
+      if (!valid) return;
+    }
+
     if (step < STEPS.length - 1) setStep((s) => s + 1);
   };
 
@@ -694,7 +737,13 @@ export function CreateCampaignPage(): React.ReactElement {
                 </Button>
               )}
               {step < STEPS.length - 1 ? (
-                <Button type="button" variant="primary" size="lg" fullWidth onClick={handleNext}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={() => void handleNext()}
+                >
                   Next
                 </Button>
               ) : (

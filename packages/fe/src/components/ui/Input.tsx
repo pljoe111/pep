@@ -3,6 +3,7 @@ import React from 'react';
 interface InputProps {
   label?: string;
   error?: string;
+  valid?: boolean;
   helperText?: string;
   id?: string;
   name?: string;
@@ -28,6 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     {
       label,
       error,
+      valid,
       helperText,
       id,
       name,
@@ -82,7 +84,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
             'transition-colors duration-150',
             'min-h-[44px]',
-            error ? 'border-danger' : 'border-border',
+            valid ? 'border-success' : error ? 'border-danger' : 'border-border',
             disabled ? 'opacity-50 cursor-not-allowed bg-surface-a' : '',
           ]
             .filter(Boolean)
