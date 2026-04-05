@@ -10,8 +10,10 @@ import {
   Configuration,
   LabsApi,
   NotificationsApi,
+  PeptidesApi,
   TestsApi,
   UsersApi,
+  VendorsApi,
   WalletApi,
 } from 'api-client';
 import axiosInstance from './axiosInstance';
@@ -28,3 +30,5 @@ export const notificationsApi = new NotificationsApi(configuration, config.apiUr
 export const testsApi = new TestsApi(configuration, config.apiUrl, axiosInstance);
 export const usersApi = new UsersApi(configuration, config.apiUrl, axiosInstance);
 export const appInfoApi = new AppInfoApi(configuration, config.apiUrl, axiosInstance);
+export const peptidesApi = new PeptidesApi(configuration, config.apiUrl, axiosInstance);
+export const vendorsApi = new VendorsApi(configuration, config.apiUrl, axiosInstance);

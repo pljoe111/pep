@@ -31,11 +31,12 @@ export class NotificationService {
 
   /**
    * Send a notification to a single user, respecting their preferences.
+   * campaignId is optional — omit for non-campaign notifications (e.g. peptide_approved).
    */
   async send(
     userId: string,
     type: NotificationType,
-    campaignId: string,
+    campaignId: string | null,
     title: string,
     message: string
   ): Promise<void> {
@@ -52,7 +53,7 @@ export class NotificationService {
           data: {
             user_id: userId,
             notification_type: type,
-            campaign_id: campaignId,
+            ...(campaignId !== null ? { campaign_id: campaignId } : {}),
             title,
             message,
             sent_email: false,
@@ -176,5 +177,44 @@ export class NotificationService {
       data: { is_read: true, read_at: new Date() },
     });
     return { marked_count: result.count };
+  }
+
+  /**
+   * Send an in-app-only notification for a peptide approval/rejection.
+   * No campaign context — never sends email per spec §6.1.
+   */
+  async sendPeptideNotification(
+    userId: string,
+    peptideId: string,
+    type: 'peptide_approved' | 'peptide_rejected',
+    peptideName: string
+  ): Promise<void> {
+    const title =
+      type === 'peptide_approved'
+        ? `Peptide approved: ${peptideName}`
+        : `Peptide submission rejected: ${peptideName}`;
+    const message =
+      type === 'peptide_approved'
+        ? `Your peptide submission "${peptideName}" has been approved and is now available in the catalog.`
+        : `Your peptide submission "${peptideName}" was not approved. Please contact support for details.`;
+
+    await this.prisma.notification
+      .create({
+        data: {
+          user_id: userId,
+          notification_type: type,
+          title,
+          message,
+          sent_email: false,
+          // campaign_id intentionally omitted (nullable)
+        },
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(
+          { error: msg, userId, peptideId, type },
+          'Failed to create peptide notification'
+        );
+      });
   }
 }

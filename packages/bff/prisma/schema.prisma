@@ -66,6 +66,21 @@ enum ContributionStatus {
 enum ClaimKind {
   mass
   other
+  purity
+  identity
+  endotoxins
+  sterility
+}
+
+enum VendorStatus {
+  pending
+  approved
+  rejected
+}
+
+enum EndotoxinMode {
+  exact_value
+  pass_fail
 }
 
 enum VerificationStatus {
@@ -99,6 +114,8 @@ enum NotificationType {
   deposit_confirmed
   withdrawal_sent
   withdrawal_failed
+  peptide_approved
+  peptide_rejected
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -315,6 +332,8 @@ model Sample {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaign_id          String   @db.Uuid
   vendor_name          String   @db.VarChar(200)
+  vendor_id            String?  @db.Uuid
+  peptide_id           String?  @db.Uuid
   purchase_date        DateTime @db.Date
   physical_description String   @db.Text
   sample_label         String   @db.VarChar(200)
@@ -323,25 +342,40 @@ model Sample {
   created_at           DateTime @default(now()) @db.Timestamptz
 
   campaign     Campaign      @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  peptide      Peptide?      @relation(fields: [peptide_id], references: [id], onDelete: SetNull)
+  vendor       Vendor?       @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
   sampleClaims SampleClaim[]
   testRequests TestRequest[]
   coa          Coa?
 
   @@index([campaign_id])
+  @@index([peptide_id])
+  @@index([vendor_id])
   @@map("sample")
 }
 
 // §4.13 — Validation rules enforced in service (not DB):
-//   mass → mass_amount and mass_unit non-null; other_description null
-//   other → other_description non-null; mass_amount and mass_unit null
+//   mass → mass_amount and mass_unit non-null
+//   other → other_description non-null
+//   purity → purity_percent non-null, 0–100
+//   identity → identity_peptide_id non-null (FK to Peptide)
+//   endotoxins → endotoxin_value OR endotoxin_pass non-null (per lab EndotoxinMode)
+//   sterility → sterility_pass non-null
 //   mass_unit must be in valid_mass_units config list
 model SampleClaim {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sample_id         String    @db.Uuid
-  claim_type        ClaimKind
-  mass_amount       Decimal?  @db.Decimal(10, 4)
-  mass_unit         String?   @db.VarChar(20)
-  other_description String?   @db.Text
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sample_id           String    @db.Uuid
+  claim_type          ClaimKind
+  mass_amount         Decimal?  @db.Decimal(10, 4)
+  mass_unit           String?   @db.VarChar(20)
+  other_description   String?   @db.Text
+  purity_percent      Decimal?  @db.Decimal(6, 3)
+  endotoxin_value     Decimal?  @db.Decimal(10, 4)
+  endotoxin_pass      Boolean?
+  sterility_pass      Boolean?
+  identity_peptide_id String?   @db.Uuid
+  is_required         Boolean   @default(false)
+  sort_order          Int       @default(0)
 
   sample Sample @relation(fields: [sample_id], references: [id], onDelete: Cascade)
 
@@ -414,11 +448,13 @@ model Test {
   description        String   @db.Text
   usp_code           String?  @db.VarChar(50)
   is_active          Boolean  @default(true)
+  vials_required     Int      @default(1)
   created_by_user_id String   @db.Uuid
   created_at         DateTime @default(now()) @db.Timestamptz
 
-  labTests     LabTest[]
-  testRequests TestRequest[]
+  labTests       LabTest[]
+  testRequests   TestRequest[]
+  claimTemplates TestClaimTemplate[]
 
   @@index([is_active])
   @@map("test")
@@ -426,14 +462,16 @@ model Test {
 
 // §4.18
 model LabTest {
-  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  lab_id                  String   @db.Uuid
-  test_id                 String   @db.Uuid
-  price_usd               Decimal  @db.Decimal(10, 2)
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lab_id                  String        @db.Uuid
+  test_id                 String        @db.Uuid
+  price_usd               Decimal       @db.Decimal(10, 2)
   typical_turnaround_days Int
-  is_active               Boolean  @default(true)
-  created_at              DateTime @default(now()) @db.Timestamptz
-  updated_at              DateTime @updatedAt @db.Timestamptz
+  vials_required          Int           @default(1)
+  endotoxin_mode          EndotoxinMode @default(pass_fail)
+  is_active               Boolean       @default(true)
+  created_at              DateTime      @default(now()) @db.Timestamptz
+  updated_at              DateTime      @updatedAt @db.Timestamptz
 
   // Restrict: service code enforces deletion order; do not accidentally cascade
   lab          Lab                   @relation(fields: [lab_id], references: [id], onDelete: Restrict)
@@ -445,6 +483,62 @@ model LabTest {
   @@index([test_id])
   @@index([is_active])
   @@map("lab_test")
+}
+
+// Normalized peptide catalog — seeded by admins, contributed by users (pending approval)
+model Peptide {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @unique @db.VarChar(200)
+  aliases     String[]
+  description String?   @db.Text
+  is_active   Boolean   @default(false)
+  created_by  String    @db.Uuid
+  approved_by String?   @db.Uuid
+  approved_at DateTime? @db.Timestamptz
+  created_at  DateTime  @default(now()) @db.Timestamptz
+
+  samples Sample[]
+
+  @@index([name])
+  @@map("peptide")
+}
+
+// Normalized vendor registry — contributed by users (pending approval)
+model Vendor {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String       @unique @db.VarChar(200)
+  website        String?      @db.VarChar(500)
+  country        String?      @db.VarChar(100)
+  telegram_group String?      @db.VarChar(200)
+  contact_notes  String?      @db.Text
+  status         VendorStatus @default(pending)
+  submitted_by   String       @db.Uuid
+  reviewed_by    String?      @db.Uuid
+  reviewed_at    DateTime?    @db.Timestamptz
+  review_notes   String?      @db.Text
+  created_at     DateTime     @default(now()) @db.Timestamptz
+  updated_at     DateTime     @updatedAt @db.Timestamptz
+
+  samples Sample[]
+
+  @@index([status])
+  @@index([name])
+  @@map("vendor")
+}
+
+// Links a Test to the claim types it implies; used by wizard for auto-suggestion
+model TestClaimTemplate {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  test_id     String    @db.Uuid
+  claim_kind  ClaimKind
+  label       String    @db.VarChar(200)
+  is_required Boolean   @default(false)
+  sort_order  Int       @default(0)
+
+  test Test @relation(fields: [test_id], references: [id], onDelete: Cascade)
+
+  @@unique([test_id, claim_kind])
+  @@map("test_claim_template")
 }
 
 // §4.19 — Written whenever LabTest.price_usd changes.
@@ -496,12 +590,12 @@ model Reaction {
   @@map("reaction")
 }
 
-// §4.22
+// §4.22 — campaign_id nullable to support non-campaign notifications (e.g. peptide_approved)
 model Notification {
   id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id           String           @db.Uuid
   notification_type NotificationType
-  campaign_id       String           @db.Uuid
+  campaign_id       String?          @db.Uuid
   title             String           @db.VarChar(255)
   message           String           @db.Text
   is_read           Boolean          @default(false)
@@ -509,7 +603,7 @@ model Notification {
   created_at        DateTime         @default(now()) @db.Timestamptz
   read_at           DateTime?        @db.Timestamptz
 
-  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, is_read])
   @@index([user_id, created_at])

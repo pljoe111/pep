@@ -34,15 +34,16 @@ export type VerificationStatus =
   | 'manually_approved'
   | 'rejected';
 
-export type ClaimKind = 'mass' | 'other';
+export type ClaimKind = 'mass' | 'other' | 'purity' | 'identity' | 'endotoxins' | 'sterility';
 export type UpdateType = 'text' | 'state_change';
 
 // ─── Nested request sub-objects ───────────────────────────────────────────────
 
 export class SampleClaimInputDto {
-  @IsEnum(['mass', 'other'] as const)
+  @IsEnum(['mass', 'other', 'purity', 'identity', 'endotoxins', 'sterility'] as const)
   claim_type!: ClaimKind;
 
+  // mass
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -53,10 +54,38 @@ export class SampleClaimInputDto {
   @IsNotEmpty()
   mass_unit?: string;
 
+  // other
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   other_description?: string;
+
+  // purity
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  purity_percent?: number;
+
+  // endotoxins
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  endotoxin_value?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  endotoxin_pass?: boolean;
+
+  // sterility
+  @IsOptional()
+  @IsBoolean()
+  sterility_pass?: boolean;
+
+  // identity — references a Peptide by ID
+  @IsOptional()
+  @IsUUID()
+  identity_peptide_id?: string;
 }
 
 export class TestRequestInputDto {
@@ -69,13 +98,21 @@ export class SampleInputDto {
   @IsNotEmpty()
   vendor_name!: string;
 
+  @IsOptional()
+  @IsUUID()
+  vendor_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  peptide_id?: string;
+
   @IsString()
   @IsNotEmpty()
   purchase_date!: string; // ISO date string YYYY-MM-DD
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  physical_description!: string;
+  physical_description?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -169,9 +206,22 @@ export class AddReactionDto {
 export interface SampleClaimDto {
   id: string;
   claim_type: ClaimKind;
+  // mass
   mass_amount: number | null;
   mass_unit: string | null;
+  // other
   other_description: string | null;
+  // purity
+  purity_percent: number | null;
+  // endotoxins
+  endotoxin_value: number | null;
+  endotoxin_pass: boolean | null;
+  // sterility
+  sterility_pass: boolean | null;
+  // identity
+  identity_peptide_id: string | null;
+  is_required: boolean;
+  sort_order: number;
 }
 
 export interface TestInfoDto {
@@ -197,6 +247,10 @@ export interface CoaDto {
 export interface SampleDto {
   id: string;
   vendor_name: string;
+  vendor_id: string | null;
+  vendor: { id: string; name: string; status: string } | null;
+  peptide_id: string | null;
+  peptide: { id: string; name: string; is_active: boolean } | null;
   purchase_date: string; // ISO date YYYY-MM-DD
   physical_description: string;
   sample_label: string;

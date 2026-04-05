@@ -111,6 +111,24 @@ export class CampaignService {
           if (!massUnitsConfig.units.includes(claim.mass_unit)) {
             throw new ValidationError(`Invalid mass unit: ${claim.mass_unit}`);
           }
+        } else if (claim.claim_type === 'purity') {
+          if (claim.purity_percent === undefined) {
+            throw new ValidationError('Purity claims require purity_percent');
+          }
+        } else if (claim.claim_type === 'identity') {
+          if (!claim.identity_peptide_id) {
+            throw new ValidationError('Identity claims require identity_peptide_id');
+          }
+        } else if (claim.claim_type === 'endotoxins') {
+          if (claim.endotoxin_value === undefined && claim.endotoxin_pass === undefined) {
+            throw new ValidationError(
+              'Endotoxin claims require either endotoxin_value or endotoxin_pass'
+            );
+          }
+        } else if (claim.claim_type === 'sterility') {
+          if (claim.sterility_pass === undefined) {
+            throw new ValidationError('Sterility claims require sterility_pass');
+          }
         } else {
           if (!claim.other_description) {
             throw new ValidationError('Other claims require other_description');
@@ -216,8 +234,10 @@ export class CampaignService {
           data: {
             campaign_id: campaignId,
             vendor_name: sampleDto.vendor_name,
+            ...(sampleDto.vendor_id !== undefined ? { vendor_id: sampleDto.vendor_id } : {}),
+            ...(sampleDto.peptide_id !== undefined ? { peptide_id: sampleDto.peptide_id } : {}),
             purchase_date: purchaseDate,
-            physical_description: sampleDto.physical_description,
+            physical_description: sampleDto.physical_description ?? '',
             sample_label: sampleDto.sample_label,
             target_lab_id: sampleDto.target_lab_id,
             order_index: sampleDto.order_index ?? 0,
@@ -233,6 +253,21 @@ export class CampaignService {
               ...(claim.mass_unit !== undefined ? { mass_unit: claim.mass_unit } : {}),
               ...(claim.other_description !== undefined
                 ? { other_description: claim.other_description }
+                : {}),
+              ...(claim.purity_percent !== undefined
+                ? { purity_percent: claim.purity_percent }
+                : {}),
+              ...(claim.endotoxin_value !== undefined
+                ? { endotoxin_value: claim.endotoxin_value }
+                : {}),
+              ...(claim.endotoxin_pass !== undefined
+                ? { endotoxin_pass: claim.endotoxin_pass }
+                : {}),
+              ...(claim.sterility_pass !== undefined
+                ? { sterility_pass: claim.sterility_pass }
+                : {}),
+              ...(claim.identity_peptide_id !== undefined
+                ? { identity_peptide_id: claim.identity_peptide_id }
                 : {}),
             },
           });
@@ -977,6 +1012,10 @@ export class CampaignService {
     const samples = await this.prisma.sample.findMany({
       where: { campaign_id: campaignId },
       orderBy: { order_index: 'asc' },
+      include: {
+        vendor: { select: { id: true, name: true, status: true } },
+        peptide: { select: { id: true, name: true, is_active: true } },
+      },
     });
 
     const sampleIds = samples.map((s) => s.id);
@@ -1038,6 +1077,12 @@ export class CampaignService {
       sampleDtos.push({
         id: s.id,
         vendor_name: s.vendor_name,
+        vendor_id: s.vendor_id,
+        vendor: s.vendor ? { id: s.vendor.id, name: s.vendor.name, status: s.vendor.status } : null,
+        peptide_id: s.peptide_id,
+        peptide: s.peptide
+          ? { id: s.peptide.id, name: s.peptide.name, is_active: s.peptide.is_active }
+          : null,
         purchase_date: s.purchase_date.toISOString().split('T')[0] ?? '',
         physical_description: s.physical_description,
         sample_label: s.sample_label,
@@ -1049,6 +1094,13 @@ export class CampaignService {
           mass_amount: c.mass_amount ? Number(c.mass_amount) : null,
           mass_unit: c.mass_unit,
           other_description: c.other_description,
+          purity_percent: c.purity_percent ? Number(c.purity_percent) : null,
+          endotoxin_value: c.endotoxin_value ? Number(c.endotoxin_value) : null,
+          endotoxin_pass: c.endotoxin_pass,
+          sterility_pass: c.sterility_pass,
+          identity_peptide_id: c.identity_peptide_id,
+          is_required: c.is_required,
+          sort_order: c.sort_order,
         })),
         tests: (testsBySample.get(s.id) ?? []).map((tr) => ({
           id: tr.id,

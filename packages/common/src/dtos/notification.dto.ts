@@ -7,7 +7,9 @@ export type NotificationType =
   | 'campaign_refunded'
   | 'deposit_confirmed'
   | 'withdrawal_sent'
-  | 'withdrawal_failed';
+  | 'withdrawal_failed'
+  | 'peptide_approved'
+  | 'peptide_rejected';
 
 // ─── Response DTOs ────────────────────────────────────────────────────────────
 
@@ -15,7 +17,7 @@ export interface NotificationDto {
   id: string;
   user_id: string;
   notification_type: NotificationType;
-  campaign_id: string;
+  campaign_id: string | null;
   title: string;
   message: string;
   is_read: boolean;

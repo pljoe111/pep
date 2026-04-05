@@ -47,6 +47,16 @@ export const queryKeys = {
   },
   tests: {
     all: (activeOnly: boolean) => ['tests', activeOnly] as const,
+    claimTemplates: (testId: string) => ['tests', testId, 'claim-templates'] as const,
+  },
+  peptides: {
+    active: ['peptides', 'active'] as const,
+    all: (showUnreviewed?: boolean) => ['peptides', 'all', showUnreviewed ?? false] as const,
+  },
+  vendors: {
+    search: (q: string) => ['vendors', 'search', q] as const,
+    all: (status?: string) => ['vendors', 'all', status ?? 'all'] as const,
+    detail: (id: string) => ['vendors', id] as const,
   },
   admin: {
     campaigns: (filters: CampaignFilters & { flagged?: boolean }) =>

@@ -181,6 +181,59 @@ async function main(): Promise<void> {
   });
   console.log(`✔ test["Endotoxins"] upserted (${endotoxinsTest.id})`);
 
+  // ── Claim Templates for ID/P/P ───────────────────────────────────────────
+  // identity claim (required — locked to peptide name in wizard)
+  await prisma.testClaimTemplate.upsert({
+    where: { test_id_claim_kind: { test_id: idppTest.id, claim_kind: 'identity' } },
+    update: {},
+    create: {
+      test_id: idppTest.id,
+      claim_kind: 'identity',
+      label: 'Peptide Identity (MS confirmed)',
+      is_required: true,
+      sort_order: 0,
+    },
+  });
+  // purity claim (required)
+  await prisma.testClaimTemplate.upsert({
+    where: { test_id_claim_kind: { test_id: idppTest.id, claim_kind: 'purity' } },
+    update: {},
+    create: {
+      test_id: idppTest.id,
+      claim_kind: 'purity',
+      label: 'Purity by HPLC (%)',
+      is_required: true,
+      sort_order: 1,
+    },
+  });
+  // mass claim (required)
+  await prisma.testClaimTemplate.upsert({
+    where: { test_id_claim_kind: { test_id: idppTest.id, claim_kind: 'mass' } },
+    update: {},
+    create: {
+      test_id: idppTest.id,
+      claim_kind: 'mass',
+      label: 'Mass Amount (mg)',
+      is_required: true,
+      sort_order: 2,
+    },
+  });
+  console.log('✔ claim_templates[ID/P/P] upserted');
+
+  // ── Claim Templates for Endotoxins ───────────────────────────────────────
+  await prisma.testClaimTemplate.upsert({
+    where: { test_id_claim_kind: { test_id: endotoxinsTest.id, claim_kind: 'endotoxins' } },
+    update: {},
+    create: {
+      test_id: endotoxinsTest.id,
+      claim_kind: 'endotoxins',
+      label: 'Endotoxin Level (EU/mg)',
+      is_required: true,
+      sort_order: 0,
+    },
+  });
+  console.log('✔ claim_templates[Endotoxins] upserted');
+
   await prisma.labTest.upsert({
     where: { lab_id_test_id: { lab_id: btLab.id, test_id: idppTest.id } },
     update: { price_usd: 125, typical_turnaround_days: 14 },

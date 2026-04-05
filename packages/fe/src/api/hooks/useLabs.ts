@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../axiosInstance';
 import { labsApi, testsApi } from '../apiClient';
 import { queryKeys } from '../queryKeys';
+import type { TestClaimTemplateDto, ClaimKind } from 'api-client';
 
 /** All labs (for admin panel) */
 export function useLabs(approvedOnly = false, activeOnly = true) {
@@ -196,6 +197,73 @@ export function useDeleteTest() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['tests'] });
+    },
+  });
+}
+
+/** Fetch claim templates for a test */
+export function useTestClaimTemplates(testId: string) {
+  return useQuery({
+    queryKey: queryKeys.tests.claimTemplates(testId),
+    queryFn: async () => {
+      const res = await axiosInstance.get<TestClaimTemplateDto[]>(
+        `/tests/${testId}/claim-templates`
+      );
+      return res.data;
+    },
+    enabled: Boolean(testId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Add a claim template to a test */
+export function useCreateTestClaimTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      testId,
+      claim_kind,
+      label,
+      is_required,
+      sort_order,
+    }: {
+      testId: string;
+      claim_kind: ClaimKind;
+      label: string;
+      is_required: boolean;
+      sort_order: number;
+    }) => {
+      const res = await axiosInstance.post<TestClaimTemplateDto>(
+        `/tests/${testId}/claim-templates`,
+        {
+          claim_kind,
+          label,
+          is_required,
+          sort_order,
+        }
+      );
+      return res.data;
+    },
+    onSuccess: (_, { testId }) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.claimTemplates(testId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.all(false) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.all(true) });
+    },
+  });
+}
+
+/** Delete a claim template */
+export function useDeleteTestClaimTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ templateId, testId }: { templateId: string; testId: string }) => {
+      await axiosInstance.delete(`/tests/claim-templates/${templateId}`);
+      return testId;
+    },
+    onSuccess: (testId: string) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.claimTemplates(testId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.all(false) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tests.all(true) });
     },
   });
 }

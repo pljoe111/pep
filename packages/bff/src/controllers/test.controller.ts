@@ -18,7 +18,14 @@ import {
   OperationId,
 } from 'tsoa';
 import { TestService } from '../services/test.service';
-import type { TestDto, CreateTestDto, UpdateTestDto } from 'common';
+import type {
+  TestDto,
+  CreateTestDto,
+  UpdateTestDto,
+  TestClaimTemplateDto,
+  CreateTestClaimTemplateDto,
+  UpdateTestClaimTemplateDto,
+} from 'common';
 import type { AuthRequest } from '../middleware/auth.middleware';
 
 @Route('tests')
@@ -91,5 +98,50 @@ export class TestController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.testService.deleteTest(id, user.userId);
+  }
+
+  /** GET /tests/:testId/claim-templates — list claim templates for a test */
+  @Get('{testId}/claim-templates')
+  @OperationId('GetTestClaimTemplates')
+  public async getClaimTemplates(@Path() testId: string): Promise<TestClaimTemplateDto[]> {
+    return this.testService.listClaimTemplates(testId);
+  }
+
+  /** POST /tests/:testId/claim-templates — create a new claim template */
+  @Post('{testId}/claim-templates')
+  @Security('jwt')
+  @OperationId('CreateTestClaimTemplate')
+  public async createClaimTemplate(
+    @Path() testId: string,
+    @Body() body: CreateTestClaimTemplateDto,
+    @Request() req: AuthRequest
+  ): Promise<TestClaimTemplateDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.createClaimTemplate(testId, body, user.userId);
+  }
+
+  /** PATCH /tests/claim-templates/:id — update a claim template */
+  @Patch('/claim-templates/{id}')
+  @Security('jwt')
+  @OperationId('UpdateTestClaimTemplate')
+  public async updateClaimTemplate(
+    @Path() id: string,
+    @Body() body: UpdateTestClaimTemplateDto,
+    @Request() req: AuthRequest
+  ): Promise<TestClaimTemplateDto> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.updateClaimTemplate(id, body, user.userId);
+  }
+
+  /** DELETE /tests/claim-templates/:id — delete a claim template */
+  @Delete('/claim-templates/{id}')
+  @Security('jwt')
+  @OperationId('DeleteTestClaimTemplate')
+  public async deleteClaimTemplate(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.deleteClaimTemplate(id, user.userId);
   }
 }

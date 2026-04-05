@@ -29,8 +29,18 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { formatUSD } from '../lib/formatters';
 import { isValidSolanaAddress } from '../lib/validators';
-import type { CampaignDetailDto, CoaDto, LabDetailDto, LabTestDto, TestDto } from 'api-client';
+import type {
+  CampaignDetailDto,
+  CoaDto,
+  LabDetailDto,
+  LabTestDto,
+  PeptideDto,
+  TestDto,
+  VendorDto,
+  ClaimKind,
+} from 'api-client';
 import { labsApi, testsApi } from '../api/apiClient';
+import axiosInstance from '../api/axiosInstance';
 import {
   useLabs,
   useLabDetail,
@@ -45,7 +55,26 @@ import {
   useDeleteLab,
   useDeleteTest,
   useDeleteLabTest,
+  useTestClaimTemplates,
+  useCreateTestClaimTemplate,
+  useDeleteTestClaimTemplate,
 } from '../api/hooks/useLabs';
+import {
+  useAllPeptides,
+  useCreatePeptide,
+  useApprovePeptide,
+  useRejectPeptide,
+  useDisablePeptide,
+  useEnablePeptide,
+  useDeletePeptide,
+} from '../api/hooks/usePeptides';
+import {
+  useAllVendors,
+  useCreateVendor,
+  useReviewVendor,
+  useReinstateVendor,
+  useDeleteVendor,
+} from '../api/hooks/useVendors';
 
 /**
  * Extracts a human-readable message from an API error response.
@@ -1018,8 +1047,17 @@ function TestCatalogRow({ test }: { test: TestDto }): React.ReactElement {
   const { mutateAsync: disableTest, isPending: isDisabling } = useDisableTest();
   const { mutateAsync: enableTest, isPending: isEnabling } = useEnableTest();
   const { mutateAsync: deleteTest, isPending: isDeleting } = useDeleteTest();
+  const { mutateAsync: createClaimTemplate, isPending: isCreatingTemplate } =
+    useCreateTestClaimTemplate();
+  const { mutateAsync: deleteClaimTemplate } = useDeleteTestClaimTemplate();
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showClaimTemplates, setShowClaimTemplates] = useState(false);
+  const [addKind, setAddKind] = useState<ClaimKind>('mass');
+  const [addLabel, setAddLabel] = useState('');
+  const [addIsRequired, setAddIsRequired] = useState(true);
+  const [addSortOrder, setAddSortOrder] = useState(0);
+  const { data: claimTemplateList = [] } = useTestClaimTemplates(showClaimTemplates ? test.id : '');
 
   const handleDisable = async (): Promise<void> => {
     try {
@@ -1053,48 +1091,168 @@ function TestCatalogRow({ test }: { test: TestDto }): React.ReactElement {
   return (
     <>
       <div
-        className={`flex items-center justify-between py-2 border-b border-border last:border-0 ${
+        className={`py-2 border-b border-border last:border-0 ${
           !test.is_active ? 'opacity-60' : ''
         }`}
       >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-text">{test.name}</p>
-          <p className="text-xs text-text-2">{test.description}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={test.is_active ? 'green' : 'gray'}>
-            {test.is_active ? 'Active' : 'Disabled'}
-          </Badge>
-          {test.is_active ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              loading={isDisabling}
-              onClick={() => setShowDisableConfirm(true)}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-text">{test.name}</p>
+            <p className="text-xs text-text-2">{test.description}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="text-xs text-primary font-medium min-h-[32px] px-2"
+              onClick={() => setShowClaimTemplates(!showClaimTemplates)}
             >
-              Disable
-            </Button>
-          ) : (
-            <>
+              {showClaimTemplates ? 'Hide' : 'Claims'}
+              {test.claim_templates.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs bg-primary text-surface rounded-full">
+                  {test.claim_templates.length}
+                </span>
+              )}
+            </button>
+            <Badge variant={test.is_active ? 'green' : 'gray'}>
+              {test.is_active ? 'Active' : 'Disabled'}
+            </Badge>
+            {test.is_active ? (
               <Button
                 variant="ghost"
                 size="sm"
-                loading={isEnabling}
-                onClick={() => void handleEnable()}
+                loading={isDisabling}
+                onClick={() => setShowDisableConfirm(true)}
               >
-                Enable
+                Disable
               </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                loading={isDeleting}
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                Delete
-              </Button>
-            </>
-          )}
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  loading={isEnabling}
+                  onClick={() => void handleEnable()}
+                >
+                  Enable
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  loading={isDeleting}
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Expandable Claim Templates section */}
+        {showClaimTemplates && (
+          <div className="mt-2 ml-2 pl-3 border-l-2 border-border space-y-2">
+            <p className="text-xs font-semibold text-text-2 uppercase tracking-wide">
+              Claim Templates
+            </p>
+
+            {/* Existing templates */}
+            {claimTemplateList.length === 0 ? (
+              <p className="text-xs text-text-3">No claim templates yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {claimTemplateList.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className="flex items-center justify-between px-2 py-1.5 bg-surface-a rounded-lg text-xs"
+                  >
+                    <span>
+                      <span className="font-medium capitalize">{tmpl.claim_kind}</span>:{' '}
+                      {tmpl.label}
+                      {tmpl.is_required && (
+                        <span className="ml-2 text-primary font-medium">Required</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-danger hover:underline text-xs min-h-[28px] px-1"
+                      onClick={() => {
+                        void deleteClaimTemplate({ templateId: tmpl.id, testId: test.id });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new template form */}
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={addKind}
+                onChange={(e) => setAddKind(e.target.value as ClaimKind)}
+                className="rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px]"
+              >
+                <option value="mass">Mass Amount</option>
+                <option value="purity">Purity Percent</option>
+                <option value="identity">Identity</option>
+                <option value="endotoxins">Endotoxins</option>
+                <option value="sterility">Sterility</option>
+                <option value="other">Other</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Label"
+                value={addLabel}
+                onChange={(e) => setAddLabel(e.target.value)}
+                className="rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px]"
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-1.5 text-xs text-text">
+                <input
+                  type="checkbox"
+                  checked={addIsRequired}
+                  onChange={(e) => setAddIsRequired(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-primary"
+                />
+                Required
+              </label>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-text-2">Sort:</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={addSortOrder}
+                  onChange={(e) => setAddSortOrder(Number(e.target.value))}
+                  className="w-12 rounded-lg border border-border px-1 py-0.5 text-xs text-text bg-surface min-h-[28px]"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={isCreatingTemplate}
+                onClick={() => {
+                  if (!addLabel.trim()) {
+                    toast.error('Label is required');
+                    return;
+                  }
+                  void createClaimTemplate({
+                    testId: test.id,
+                    claim_kind: addKind,
+                    label: addLabel,
+                    is_required: addIsRequired,
+                    sort_order: addSortOrder,
+                  }).then(() => {
+                    setAddLabel('');
+                  });
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cascade-disable confirmation modal */}
@@ -1187,6 +1345,7 @@ interface PendingLabTest {
   testId: string;
   price: string;
   turnaround: string;
+  vials: string;
 }
 
 function LabModal({
@@ -1254,7 +1413,7 @@ function LabModal({
     if (mode === 'create') {
       setPendingTests((prev) => [
         ...prev,
-        { testId: selectedTestId, price: newPrice, turnaround: newTurnaround || '7' },
+        { testId: selectedTestId, price: newPrice, turnaround: newTurnaround || '7', vials: '1' },
       ]);
       setSelectedTestId('');
       setNewPrice('');
@@ -1268,6 +1427,7 @@ function LabModal({
             test_id: selectedTestId,
             price_usd: Number(newPrice),
             typical_turnaround_days: Number(newTurnaround) || 7,
+            vials_required: 1, // Default to 1 vial when adding test
           });
           toast.success('Test added to lab');
           setSelectedTestId('');
@@ -1318,12 +1478,13 @@ function LabModal({
           phone_number: phoneNumber || undefined,
           address: address || undefined,
         });
-        for (const { testId, price, turnaround } of pendingTests) {
+        for (const { testId, price, turnaround, vials } of pendingTests) {
           if (testId && price) {
             await labsApi.addTest(created.data.id, {
               test_id: testId,
               price_usd: Number(price),
               typical_turnaround_days: Number(turnaround) || 7,
+              vials_required: Number(vials) || 1,
             });
           }
         }
@@ -1432,13 +1593,14 @@ function LabModal({
             <div className="mb-3">
               <div className="flex items-center gap-2 px-2 pb-1 text-xs text-text-3 font-medium">
                 <span className="flex-1">Test</span>
-                <span className="w-20 text-right">Price</span>
-                <span className="w-20 text-right">Days</span>
-                <span className="w-16" />
+                <span className="w-16 text-right">Price</span>
+                <span className="w-16 text-right">Days</span>
+                <span className="w-12 text-right">Vials</span>
+                <span className="w-16 text-right">Actions</span>
               </div>
               <div className="space-y-1">
                 {mode === 'create'
-                  ? pendingTests.map(({ testId, price, turnaround }, idx) => (
+                  ? pendingTests.map(({ testId, price, turnaround, vials }, idx) => (
                       <div
                         key={idx}
                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-surface-a"
@@ -1473,7 +1635,7 @@ function LabModal({
                               prev.map((r, i) => (i === idx ? { ...r, price: val } : r))
                             );
                           }}
-                          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
+                          className="w-16 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
                         />
                         <input
                           type="number"
@@ -1485,7 +1647,20 @@ function LabModal({
                               prev.map((r, i) => (i === idx ? { ...r, turnaround: val } : r))
                             );
                           }}
-                          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
+                          className="w-16 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          value={vials}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingTests((prev) =>
+                              prev.map((r, i) => (i === idx ? { ...r, vials: val } : r))
+                            );
+                          }}
+                          className="w-12 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
                         />
                         <button
                           type="button"
@@ -1590,7 +1765,16 @@ function CreateTestModal({ onClose }: { onClose: () => void }): React.ReactEleme
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [uspCode, setUspCode] = useState('');
+  const [vialsRequired, setVialsRequired] = useState<number>(1);
   const [isPending, setIsPending] = useState(false);
+  // Claim templates state
+  const [claimTemplates, setClaimTemplates] = useState<
+    { claim_kind: ClaimKind; label: string; is_required: boolean; sort_order: number }[]
+  >([]);
+  const [newClaimKind, setNewClaimKind] = useState<ClaimKind>('mass');
+  const [newClaimLabel, setNewClaimLabel] = useState('');
+  const [newClaimIsRequired, setNewClaimIsRequired] = useState(true);
+  const [newClaimSortOrder, setNewClaimSortOrder] = useState(0);
 
   const handleCreate = async (): Promise<void> => {
     if (!name || !description) {
@@ -1599,7 +1783,24 @@ function CreateTestModal({ onClose }: { onClose: () => void }): React.ReactEleme
     }
     setIsPending(true);
     try {
-      await testsApi.createTest({ name, description, usp_code: uspCode || undefined });
+      const testResult = await testsApi.createTest({
+        name,
+        description,
+        usp_code: uspCode || undefined,
+        vials_required: vialsRequired,
+      });
+
+      // Create claim templates if any exist
+      const newTestId = testResult.data.id;
+      for (const tmpl of claimTemplates) {
+        await axiosInstance.post(`/tests/${newTestId}/claim-templates`, {
+          claim_kind: tmpl.claim_kind,
+          label: tmpl.label,
+          is_required: tmpl.is_required,
+          sort_order: tmpl.sort_order,
+        });
+      }
+
       toast.success('Test created');
       onClose();
     } catch (error: unknown) {
@@ -1648,6 +1849,130 @@ function CreateTestModal({ onClose }: { onClose: () => void }): React.ReactEleme
             className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
           />
         </div>
+        <div>
+          <label htmlFor="test-vials" className="text-sm font-medium text-text block mb-1">
+            Vials Required (default)
+          </label>
+          <input
+            id="test-vials"
+            type="number"
+            min="1"
+            value={vialsRequired}
+            onChange={(e) => setVialsRequired(Math.max(1, Number(e.target.value)))}
+            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+          />
+        </div>
+
+        {/* Claim Templates Section */}
+        <div className="pt-2 border-t border-border">
+          <h4 className="text-sm font-semibold text-text mb-2">Claim Templates</h4>
+          <p className="text-xs text-text-2 mb-3">
+            Define default claims that will be auto-suggested when this test is selected in
+            campaigns.
+          </p>
+
+          {/* Add new template form */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <select
+              value={newClaimKind}
+              onChange={(e) => setNewClaimKind(e.target.value as ClaimKind)}
+              className="rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[36px]"
+            >
+              <option value="mass">Mass Amount</option>
+              <option value="purity">Purity Percent</option>
+              <option value="identity">Identity (Peptide Name)</option>
+              <option value="endotoxins">Endotoxins</option>
+              <option value="sterility">Sterility</option>
+              <option value="other">Other</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Label (e.g. 'Purity by HPLC')"
+              value={newClaimLabel}
+              onChange={(e) => setNewClaimLabel(e.target.value)}
+              className="rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[36px]"
+            />
+          </div>
+
+          <div className="flex items-center gap-6 mb-3">
+            <label className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                checked={newClaimIsRequired}
+                onChange={(e) => setNewClaimIsRequired(e.target.checked)}
+                className="w-4 h-4 accent-primary"
+              />
+              Required in campaign
+            </label>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort-order" className="text-sm text-text">
+                Sort:
+              </label>
+              <input
+                id="sort-order"
+                type="number"
+                min="0"
+                value={newClaimSortOrder}
+                onChange={(e) => setNewClaimSortOrder(Number(e.target.value))}
+                className="w-16 rounded-xl border border-border px-2 py-1 text-sm text-text bg-surface min-h-[32px]"
+              />
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (!newClaimLabel.trim()) {
+                toast.error('Please enter a label for the claim');
+                return;
+              }
+              setClaimTemplates([
+                ...claimTemplates,
+                {
+                  claim_kind: newClaimKind,
+                  label: newClaimLabel,
+                  is_required: newClaimIsRequired,
+                  sort_order: newClaimSortOrder,
+                },
+              ]);
+              setNewClaimLabel(''); // Reset form after adding
+            }}
+          >
+            Add Claim Template
+          </Button>
+
+          {/* Templates list */}
+          {claimTemplates.length > 0 && (
+            <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+              {claimTemplates.map((tmpl, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-3 py-2 bg-surface-a rounded-lg text-sm"
+                >
+                  <div>
+                    <span className="font-medium capitalize">{tmpl.claim_kind}</span>: {tmpl.label}
+                    {tmpl.is_required && (
+                      <span className="ml-2 text-xs text-primary">Required</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClaimTemplates(claimTemplates.filter((_, i) => i !== idx));
+                    }}
+                    className="text-danger text-sm hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <Button
             variant="primary"
@@ -1824,6 +2149,7 @@ function LabTestPriceRow({
   const toast = useToast();
   const [price, setPrice] = useState(String(labTest.price_usd));
   const [turnaround, setTurnaround] = useState(String(labTest.typical_turnaround_days));
+  const [vials, setVials] = useState(String(labTest.vials_required ?? 1));
   const [isPending, setIsPending] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -1833,10 +2159,11 @@ function LabTestPriceRow({
       await labsApi.updateTest(labId, labTest.test_id, {
         price_usd: Number(price),
         typical_turnaround_days: Number(turnaround),
+        vials_required: Number(vials) || 1,
       });
-      toast.success('Test price updated');
+      toast.success('Test updated');
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update test price');
+      toast.error(error instanceof Error ? error.message : 'Failed to update test');
     } finally {
       setIsPending(false);
     }
@@ -1874,14 +2201,25 @@ function LabTestPriceRow({
           value={price}
           onChange={(e) => setPrice(e.target.value)}
           disabled={isInactive}
-          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+          className="w-16 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+          title="Price (USD)"
         />
         <input
           type="number"
           value={turnaround}
           onChange={(e) => setTurnaround(e.target.value)}
           disabled={isInactive}
-          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+          className="w-14 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+          title="Turnaround days"
+        />
+        <input
+          type="number"
+          min="1"
+          value={vials}
+          onChange={(e) => setVials(e.target.value)}
+          disabled={isInactive}
+          className="w-12 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+          title="Vials required"
         />
         <Button
           variant="ghost"
@@ -1957,6 +2295,423 @@ function LabTestPriceRow({
 }
 
 // Fee Sweep tab
+// ─── VendorsTab ───────────────────────────────────────────────────────────────
+
+function VendorsTab(): React.ReactElement {
+  const toast = useToast();
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected' | ''>('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newVendorName, setNewVendorName] = useState('');
+  const [newVendorWebsite, setNewVendorWebsite] = useState('');
+  const [rejectNotes, setRejectNotes] = useState('');
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+  const { data: vendors = [], isLoading } = useAllVendors(statusFilter || undefined);
+  const { mutateAsync: createVendor, isPending: createPending } = useCreateVendor();
+  const { mutateAsync: reviewVendor, isPending: reviewPending } = useReviewVendor();
+  const { mutateAsync: reinstateVendor } = useReinstateVendor();
+  const { mutateAsync: deleteVendor } = useDeleteVendor();
+
+  const handleCreate = async (): Promise<void> => {
+    if (!newVendorName.trim()) return;
+    try {
+      await createVendor({
+        name: newVendorName.trim(),
+        website: newVendorWebsite.trim() || undefined,
+      });
+      toast.success(`${newVendorName} created and approved`);
+      setNewVendorName('');
+      setNewVendorWebsite('');
+      setShowCreate(false);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed to create vendor'));
+    }
+  };
+
+  const handleApprove = async (v: VendorDto): Promise<void> => {
+    try {
+      await reviewVendor({ id: v.id, dto: { status: 'approved' } });
+      toast.success(`${v.name} approved`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleReject = async (v: VendorDto): Promise<void> => {
+    try {
+      await reviewVendor({
+        id: v.id,
+        dto: { status: 'rejected', review_notes: rejectNotes || undefined },
+      });
+      toast.success(`${v.name} rejected`);
+      setRejectingId(null);
+      setRejectNotes('');
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleReinstate = async (v: VendorDto): Promise<void> => {
+    try {
+      await reinstateVendor(v.id);
+      toast.success(`${v.name} reinstated`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleDelete = async (v: VendorDto): Promise<void> => {
+    if (!confirm(`Delete vendor "${v.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteVendor(v.id);
+      toast.success(`${v.name} deleted`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed to delete vendor'));
+    }
+  };
+
+  return (
+    <div>
+      {/* Action bar */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <Button variant="primary" size="sm" onClick={() => setShowCreate((v) => !v)}>
+          Add Vendor
+        </Button>
+        {(['', 'pending', 'approved', 'rejected'] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStatusFilter(s)}
+            className={[
+              'px-3 py-1.5 rounded-xl border text-sm font-medium min-h-[36px]',
+              statusFilter === s
+                ? 'bg-primary text-white border-primary'
+                : 'border-border text-text-2',
+            ].join(' ')}
+          >
+            {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <Card padding="md" className="mb-4">
+          <p className="text-sm font-medium text-text mb-3">New Vendor (auto-approved)</p>
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Name *"
+              value={newVendorName}
+              onChange={(e) => setNewVendorName(e.target.value)}
+              className="w-full rounded-xl border border-border px-4 py-3 text-sm text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            />
+            <input
+              type="url"
+              placeholder="Website (optional)"
+              value={newVendorWebsite}
+              onChange={(e) => setNewVendorWebsite(e.target.value)}
+              className="w-full rounded-xl border border-border px-4 py-3 text-sm text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            />
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={createPending}
+                onClick={() => void handleCreate()}
+              >
+                Create
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {isLoading && <Spinner />}
+      {!isLoading && vendors.length === 0 && <EmptyState heading="No vendors found" />}
+
+      {/* Reject notes modal */}
+      {rejectingId !== null && (
+        <Modal isOpen title="Reject Vendor" onClose={() => setRejectingId(null)}>
+          <div className="space-y-3">
+            <textarea
+              rows={3}
+              placeholder="Review notes (optional)"
+              value={rejectNotes}
+              onChange={(e) => setRejectNotes(e.target.value)}
+              className="w-full rounded-xl border border-border px-4 py-3 text-sm text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" fullWidth onClick={() => setRejectingId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                fullWidth
+                loading={reviewPending}
+                onClick={() => {
+                  const v = vendors.find((x) => x.id === rejectingId);
+                  if (v) void handleReject(v);
+                }}
+              >
+                Confirm Reject
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <div className="space-y-3">
+        {vendors.map((v) => (
+          <Card key={v.id} padding="sm">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-text">{v.name}</p>
+                {v.website && <p className="text-xs text-text-2">{v.website}</p>}
+                {v.country && <p className="text-xs text-text-2">{v.country}</p>}
+                <p className="text-xs text-text-3 mt-0.5">
+                  {v.status === 'approved'
+                    ? '✓ Verified'
+                    : v.status === 'rejected'
+                      ? '✗ Rejected'
+                      : '⚠ Pending'}
+                </p>
+              </div>
+              <div className="flex gap-1.5 flex-wrap justify-end shrink-0">
+                {v.status === 'pending' && (
+                  <>
+                    <Button variant="primary" size="sm" onClick={() => void handleApprove(v)}>
+                      Approve
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setRejectingId(v.id)}>
+                      Reject
+                    </Button>
+                  </>
+                )}
+                {v.status === 'approved' && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => void handleReject(v)}>
+                      Suspend
+                    </Button>
+                  </>
+                )}
+                {v.status === 'rejected' && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => void handleReinstate(v)}>
+                      Reinstate
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void handleDelete(v)}>
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── PeptidesTab ─────────────────────────────────────────────────────────────
+
+function PeptidesTab(): React.ReactElement {
+  const toast = useToast();
+  const [showUnreviewed, setShowUnreviewed] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newAliases, setNewAliases] = useState('');
+
+  const { data: peptides = [], isLoading } = useAllPeptides(showUnreviewed);
+  const { mutateAsync: createPeptide, isPending: createPending } = useCreatePeptide();
+  const { mutateAsync: approvePeptide } = useApprovePeptide();
+  const { mutateAsync: rejectPeptide } = useRejectPeptide();
+  const { mutateAsync: disablePeptide } = useDisablePeptide();
+  const { mutateAsync: enablePeptide } = useEnablePeptide();
+  const { mutateAsync: deletePeptide } = useDeletePeptide();
+
+  const handleCreate = async (): Promise<void> => {
+    if (!newName.trim()) return;
+    try {
+      await createPeptide({
+        name: newName.trim(),
+        aliases: newAliases
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean),
+      });
+      toast.success(`${newName} created`);
+      setNewName('');
+      setNewAliases('');
+      setShowCreate(false);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleApprove = async (p: PeptideDto): Promise<void> => {
+    try {
+      await approvePeptide(p.id);
+      toast.success(`${p.name} approved`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleReject = async (p: PeptideDto): Promise<void> => {
+    if (!confirm(`Reject and delete "${p.name}"?`)) return;
+    try {
+      await rejectPeptide(p.id);
+      toast.success(`${p.name} rejected`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleDisable = async (p: PeptideDto): Promise<void> => {
+    try {
+      await disablePeptide(p.id);
+      toast.success(`${p.name} disabled`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleEnable = async (p: PeptideDto): Promise<void> => {
+    try {
+      await enablePeptide(p.id);
+      toast.success(`${p.name} enabled`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed'));
+    }
+  };
+
+  const handleDelete = async (p: PeptideDto): Promise<void> => {
+    if (!confirm(`Delete peptide "${p.name}"?`)) return;
+    try {
+      await deletePeptide(p.id);
+      toast.success(`${p.name} deleted`);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Failed to delete — peptide may be in use'));
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <Button variant="primary" size="sm" onClick={() => setShowCreate((v) => !v)}>
+          Add Peptide
+        </Button>
+        <button
+          type="button"
+          onClick={() => setShowUnreviewed((v) => !v)}
+          className={[
+            'px-3 py-1.5 rounded-xl border text-sm font-medium min-h-[36px]',
+            showUnreviewed
+              ? 'bg-amber-100 border-amber-300 text-amber-800'
+              : 'border-border text-text-2',
+          ].join(' ')}
+        >
+          {showUnreviewed ? '⚠ Show Unreviewed' : 'All Active'}
+        </button>
+      </div>
+
+      {showCreate && (
+        <Card padding="md" className="mb-4">
+          <p className="text-sm font-medium text-text mb-3">New Peptide (auto-approved)</p>
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Name *"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full rounded-xl border border-border px-4 py-3 text-sm text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            />
+            <input
+              type="text"
+              placeholder="Aliases (comma-separated, optional)"
+              value={newAliases}
+              onChange={(e) => setNewAliases(e.target.value)}
+              className="w-full rounded-xl border border-border px-4 py-3 text-sm text-text bg-surface focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            />
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={createPending}
+                onClick={() => void handleCreate()}
+              >
+                Create
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {isLoading && <Spinner />}
+      {!isLoading && peptides.length === 0 && <EmptyState heading="No peptides found" />}
+
+      <div className="space-y-3">
+        {peptides.map((p) => (
+          <Card key={p.id} padding="sm">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-text">{p.name}</p>
+                {p.aliases.length > 0 && (
+                  <p className="text-xs text-text-2">{p.aliases.join(', ')}</p>
+                )}
+                {p.description !== null && (
+                  <p className="text-xs text-text-3 mt-0.5 line-clamp-1" title={p.description}>
+                    {p.description}
+                  </p>
+                )}
+                <p className="text-xs text-text-3 mt-0.5">
+                  {p.is_active ? '✓ Active' : '⚠ Unreviewed / Disabled'}
+                </p>
+              </div>
+              <div className="flex gap-1.5 flex-wrap justify-end shrink-0">
+                {!p.is_active && (
+                  <>
+                    <Button variant="primary" size="sm" onClick={() => void handleApprove(p)}>
+                      Approve
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void handleReject(p)}>
+                      Reject
+                    </Button>
+                  </>
+                )}
+                {p.is_active && (
+                  <Button variant="ghost" size="sm" onClick={() => void handleDisable(p)}>
+                    Disable
+                  </Button>
+                )}
+                {!p.is_active && p.approved_at !== null && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => void handleEnable(p)}>
+                      Enable
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void handleDelete(p)}>
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface SweepForm {
   destination_address: string;
 }
@@ -2107,6 +2862,16 @@ export function AdminPage(): React.ReactElement {
       id: 'labs',
       label: 'Labs',
       content: <LabsTab />,
+    },
+    {
+      id: 'vendors',
+      label: 'Vendors',
+      content: <VendorsTab />,
+    },
+    {
+      id: 'peptides',
+      label: 'Peptides',
+      content: <PeptidesTab />,
     },
     {
       id: 'config',

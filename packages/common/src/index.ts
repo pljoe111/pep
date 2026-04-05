@@ -6,6 +6,8 @@ export * from './dtos/contribution.dto';
 export * from './dtos/lab.dto';
 export * from './dtos/leaderboard.dto';
 export * from './dtos/notification.dto';
+export * from './dtos/peptide.dto';
 export * from './dtos/user.dto';
+export * from './dtos/vendor.dto';
 export * from './dtos/wallet.dto';
 export * from './utils/env-check';

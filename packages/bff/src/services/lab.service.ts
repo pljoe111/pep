@@ -1,5 +1,6 @@
 /**
  * LabService — spec §9.9 (Lab CRUD, approval, adding tests to labs).
+ * Extended with vials_required, endotoxin_mode on LabTest.
  */
 import { injectable, inject } from 'tsyringe';
 import type { Lab } from '@prisma/client';
@@ -91,6 +92,8 @@ export class LabService {
         test_name: testMap.get(lt.test_id) ?? '',
         price_usd: Number(lt.price_usd),
         typical_turnaround_days: lt.typical_turnaround_days,
+        vials_required: lt.vials_required,
+        endotoxin_mode: lt.endotoxin_mode as LabTestDto['endotoxin_mode'],
         is_active: lt.is_active,
       })),
     };
@@ -155,6 +158,8 @@ export class LabService {
         test_id: dto.test_id,
         price_usd: dto.price_usd,
         typical_turnaround_days: dto.typical_turnaround_days,
+        ...(dto.vials_required !== undefined ? { vials_required: dto.vials_required } : {}),
+        ...(dto.endotoxin_mode !== undefined ? { endotoxin_mode: dto.endotoxin_mode } : {}),
       },
     });
 
@@ -182,6 +187,8 @@ export class LabService {
       test_name: test.name,
       price_usd: Number(labTest.price_usd),
       typical_turnaround_days: labTest.typical_turnaround_days,
+      vials_required: labTest.vials_required,
+      endotoxin_mode: labTest.endotoxin_mode as LabTestDto['endotoxin_mode'],
       is_active: labTest.is_active,
     };
   }
@@ -220,6 +227,8 @@ export class LabService {
         ...(dto.typical_turnaround_days !== undefined
           ? { typical_turnaround_days: dto.typical_turnaround_days }
           : {}),
+        ...(dto.vials_required !== undefined ? { vials_required: dto.vials_required } : {}),
+        ...(dto.endotoxin_mode !== undefined ? { endotoxin_mode: dto.endotoxin_mode } : {}),
       },
     });
 
@@ -238,6 +247,8 @@ export class LabService {
       test_name: test.name,
       price_usd: Number(updated.price_usd),
       typical_turnaround_days: updated.typical_turnaround_days,
+      vials_required: updated.vials_required,
+      endotoxin_mode: updated.endotoxin_mode as LabTestDto['endotoxin_mode'],
       is_active: updated.is_active,
     };
   }
