@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -50,7 +51,9 @@ export function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  // createPortal teleports the overlay to document.body so it is never clipped or
+  // dimmed by an ancestor's opacity / stacking-context (e.g. opacity-60 on disabled cards).
+  return ReactDOM.createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -96,6 +99,7 @@ export function Modal({
         )}
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

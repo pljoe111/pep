@@ -15,6 +15,8 @@ export function CampaignCard({ campaign }: CampaignCardProps): React.ReactElemen
   const progress = campaign.funding_progress_percent ?? 0;
   const timeLeft = campaign.time_remaining_seconds ?? 0;
   const sampleLabels = campaign.sample_labels ?? [];
+  const vendorNames = campaign.vendor_names ?? [];
+  const labNames = campaign.lab_names ?? [];
 
   return (
     <Link to={`/campaigns/${campaign.id}`} className="block group" aria-label={campaign.title}>
@@ -55,6 +57,24 @@ export function CampaignCard({ campaign }: CampaignCardProps): React.ReactElemen
             {campaign.creator?.username ?? 'Anonymous'}
           </span>
         </p>
+
+        {/* Vendors & Labs */}
+        {(vendorNames.length > 0 || labNames.length > 0) && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3">
+            {vendorNames.length > 0 && (
+              <span className="text-xs text-text-2">
+                <span className="font-medium text-text">Vendor:</span>{' '}
+                <span className="text-primary">{vendorNames.join(', ')}</span>
+              </span>
+            )}
+            {labNames.length > 0 && (
+              <span className="text-xs text-text-2">
+                <span className="font-medium text-text">Lab:</span>{' '}
+                <span className="text-text">{labNames.join(', ')}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Sample labels */}
         {sampleLabels.length > 0 && (

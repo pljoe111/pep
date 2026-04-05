@@ -4,6 +4,7 @@
 import { inject } from 'tsyringe';
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -56,5 +57,39 @@ export class TestController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.testService.update(id, body, user.userId);
+  }
+
+  /** POST /tests/:id/disable — admin required */
+  @Post('{id}/disable')
+  @Security('jwt')
+  @OperationId('DisableTest')
+  public async disable(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.disableTest(id, user.userId);
+  }
+
+  /** POST /tests/:id/enable — admin required */
+  @Post('{id}/enable')
+  @Security('jwt')
+  @OperationId('EnableTest')
+  public async enable(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.enableTest(id, user.userId);
+  }
+
+  /**
+   * DELETE /tests/:id — permanently deletes the test type.
+   * Guard: fails with 409 if any lab-test records (active or inactive) reference it.
+   * Disable the test and remove it from all labs before calling this.
+   */
+  @Delete('{id}')
+  @Security('jwt')
+  @OperationId('DeleteTest')
+  public async deleteTest(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.testService.deleteTest(id, user.userId);
   }
 }

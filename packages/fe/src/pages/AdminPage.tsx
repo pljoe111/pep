@@ -29,9 +29,42 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { formatUSD } from '../lib/formatters';
 import { isValidSolanaAddress } from '../lib/validators';
-import type { CampaignDetailDto, CoaDto, LabDetailDto, LabTestDto } from 'api-client';
+import type { CampaignDetailDto, CoaDto, LabDetailDto, LabTestDto, TestDto } from 'api-client';
 import { labsApi, testsApi } from '../api/apiClient';
-import { useLabs, useTests } from '../api/hooks/useLabs';
+import {
+  useLabs,
+  useLabDetail,
+  useTests,
+  useApproveLab,
+  useDeactivateLabTest,
+  useDeactivateLab,
+  useReactivateLab,
+  useReactivateLabTest,
+  useDisableTest,
+  useEnableTest,
+  useDeleteLab,
+  useDeleteTest,
+  useDeleteLabTest,
+} from '../api/hooks/useLabs';
+
+/**
+ * Extracts a human-readable message from an API error response.
+ * Axios wraps server bodies under error.response.data; this unwraps them so users
+ * see the real message (e.g. "Cannot delete lab: it still has 2 associated test(s)")
+ * instead of the generic "Request failed with status code 409".
+ */
+function extractApiError(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message ===
+      'string'
+  ) {
+    return (error as { response: { data: { message: string } } }).response.data.message;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
 
 // COA verification modal
 function VerifyCoaModal({
@@ -844,34 +877,89 @@ function ConfigTab(): React.ReactElement {
 
 // Labs tab
 function LabsTab(): React.ReactElement {
-  const { data: labsResp, isLoading: labsLoading } = useLabs(false);
-  const { data: testsResp, isLoading: testsLoading } = useTests();
+  const [showDisabled, setShowDisabled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { data: labsResp, isLoading: labsLoading } = useLabs(false, !showDisabled);
+  const { data: testsResp, isLoading: testsLoading } = useTests(!showDisabled);
   const labs = labsResp?.data ?? [];
   const tests = testsResp ?? [];
-  const [selectedLab, setSelectedLab] = useState<LabDetailDto | null>(null);
+  const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
   const [showCreateLab, setShowCreateLab] = useState(false);
   const [showCreateTest, setShowCreateTest] = useState(false);
 
+  // Fetch lab detail when a lab is selected for editing
+  const { data: selectedLabDetail, refetch: refetchLabDetail } = useLabDetail(selectedLabId ?? '');
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 mb-2">
-        <Button variant="primary" size="sm" onClick={() => setShowCreateLab(true)}>
-          Add Lab
-        </Button>
-        <Button variant="primary" size="sm" onClick={() => setShowCreateTest(true)}>
-          Add Test
-        </Button>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="relative">
+          <Button variant="primary" size="sm" onClick={() => setMenuOpen(!menuOpen)}>
+            <svg
+              className="w-4 h-4 mr-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
+            </svg>
+            Actions
+          </Button>
+          {menuOpen && (
+            <div className="absolute z-10 mt-1 w-48 bg-surface border border-border rounded-xl shadow-lg py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateLab(true);
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-text hover:bg-surface-a"
+              >
+                Add Lab
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateTest(true);
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-text hover:bg-surface-a"
+              >
+                Add Test
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Visible toggle — always shows the current filter state */}
+        <button
+          type="button"
+          onClick={() => setShowDisabled((v) => !v)}
+          className={[
+            'px-3 py-2 rounded-xl border text-sm font-medium min-h-[44px] transition-colors',
+            showDisabled
+              ? 'bg-primary-l border-primary text-primary'
+              : 'border-border text-text-2 hover:border-text-3',
+          ].join(' ')}
+        >
+          {showDisabled ? '◉ Showing Disabled' : 'Show Disabled'}
+        </button>
       </div>
 
-      {showCreateLab && <CreateLabModal onClose={() => setShowCreateLab(false)} />}
+      {showCreateLab && (
+        <LabModal mode="create" onClose={() => setShowCreateLab(false)} tests={tests} />
+      )}
       {showCreateTest && <CreateTestModal onClose={() => setShowCreateTest(false)} />}
 
       {labsLoading && <Spinner />}
-      {!labsLoading && labs.length === 0 && <EmptyState heading="No labs found" />}
+      {!labsLoading && labs.length === 0 && (
+        <EmptyState heading={showDisabled ? 'No labs found' : 'No active labs found'} />
+      )}
       {!labsLoading && labs.length > 0 && (
         <div className="space-y-3">
           {labs.map((lab) => (
-            <Card key={lab.id} padding="md">
+            <Card key={lab.id} padding="md" className={!lab.is_active ? 'opacity-60' : ''}>
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h4 className="font-bold text-sm text-text">{lab.name}</h4>
@@ -881,13 +969,18 @@ function LabsTab(): React.ReactElement {
                   <Badge variant={lab.is_approved ? 'green' : 'amber'}>
                     {lab.is_approved ? 'Approved' : 'Pending'}
                   </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void setSelectedLab(lab as unknown as LabDetailDto)}
-                  >
-                    Edit
-                  </Button>
+                  {!lab.is_active && <Badge variant="gray">Disabled</Badge>}
+                  {!lab.is_approved && lab.is_active && (
+                    <ApproveLabButton labId={lab.id} labName={lab.name} />
+                  )}
+                  {lab.is_active && (
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedLabId(lab.id)}>
+                      Edit
+                    </Button>
+                  )}
+                  {lab.is_active && <DisableLabButton labId={lab.id} labName={lab.name} />}
+                  {!lab.is_active && <ReactivateLabButton labId={lab.id} labName={lab.name} />}
+                  {!lab.is_active && <DeleteLabButton labId={lab.id} labName={lab.name} />}
                 </div>
               </div>
             </Card>
@@ -895,7 +988,15 @@ function LabsTab(): React.ReactElement {
         </div>
       )}
 
-      {selectedLab && <EditLabModal lab={selectedLab} onClose={() => setSelectedLab(null)} />}
+      {selectedLabDetail && (
+        <LabModal
+          mode="edit"
+          lab={selectedLabDetail}
+          tests={tests}
+          onClose={() => setSelectedLabId(null)}
+          onTestAdded={() => void refetchLabDetail()}
+        />
+      )}
 
       {testsLoading && <Spinner />}
       {!testsLoading && tests.length > 0 && (
@@ -903,18 +1004,7 @@ function LabsTab(): React.ReactElement {
           <h3 className="font-bold text-base mb-3">Test Catalog</h3>
           <div className="space-y-2">
             {tests.map((test) => (
-              <div
-                key={test.id}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-text">{test.name}</p>
-                  <p className="text-xs text-text-2">{test.description}</p>
-                </div>
-                <Badge variant={test.is_active ? 'green' : 'gray'}>
-                  {test.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
+              <TestCatalogRow key={test.id} test={test} />
             ))}
           </div>
         </Card>
@@ -923,99 +1013,571 @@ function LabsTab(): React.ReactElement {
   );
 }
 
-function CreateLabModal({ onClose }: { onClose: () => void }): React.ReactElement {
+function TestCatalogRow({ test }: { test: TestDto }): React.ReactElement {
   const toast = useToast();
-  const [name, setName] = useState('');
-  const [country, setCountry] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState('');
-  const [isPending, setIsPending] = useState(false);
+  const { mutateAsync: disableTest, isPending: isDisabling } = useDisableTest();
+  const { mutateAsync: enableTest, isPending: isEnabling } = useEnableTest();
+  const { mutateAsync: deleteTest, isPending: isDeleting } = useDeleteTest();
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleCreate = async (): Promise<void> => {
-    if (!name || !country) {
-      toast.error('Name and country are required');
+  const handleDisable = async (): Promise<void> => {
+    try {
+      await disableTest(test.id);
+      toast.success(`${test.name} disabled`);
+      setShowDisableConfirm(false);
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to disable test'));
+    }
+  };
+
+  const handleEnable = async (): Promise<void> => {
+    try {
+      await enableTest(test.id);
+      toast.success(`${test.name} enabled`);
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to enable test'));
+    }
+  };
+
+  const handleConfirmDelete = async (): Promise<void> => {
+    try {
+      await deleteTest(test.id);
+      toast.success(`${test.name} permanently deleted`);
+      setShowDeleteConfirm(false);
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to delete test'));
+    }
+  };
+
+  return (
+    <>
+      <div
+        className={`flex items-center justify-between py-2 border-b border-border last:border-0 ${
+          !test.is_active ? 'opacity-60' : ''
+        }`}
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-text">{test.name}</p>
+          <p className="text-xs text-text-2">{test.description}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={test.is_active ? 'green' : 'gray'}>
+            {test.is_active ? 'Active' : 'Disabled'}
+          </Badge>
+          {test.is_active ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={isDisabling}
+              onClick={() => setShowDisableConfirm(true)}
+            >
+              Disable
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={isEnabling}
+                onClick={() => void handleEnable()}
+              >
+                Enable
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                loading={isDeleting}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Cascade-disable confirmation modal */}
+      {showDisableConfirm && (
+        <Modal isOpen title="Disable Test Type" onClose={() => setShowDisableConfirm(false)}>
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-surface-a border border-border">
+              <p className="text-sm font-bold text-warning mb-1">⚠️ Cascading Action</p>
+              <p className="text-sm text-text">
+                Disabling <strong>{test.name}</strong> will immediately deactivate this test across{' '}
+                <strong>all labs</strong> that currently offer it. Lab staff will need to manually
+                re-enable their individual test offerings after you re-enable this test type.
+              </p>
+            </div>
+            <p className="text-sm text-text-2">
+              This action takes effect immediately for all affected labs.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                size="md"
+                fullWidth
+                loading={isDisabling}
+                onClick={() => void handleDisable()}
+              >
+                Disable Everywhere
+              </Button>
+              <Button
+                variant="ghost"
+                size="md"
+                fullWidth
+                onClick={() => setShowDisableConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Permanent-delete confirmation modal */}
+      {showDeleteConfirm && (
+        <Modal isOpen title="Permanently Delete Test" onClose={() => setShowDeleteConfirm(false)}>
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-surface-a border border-border">
+              <p className="text-sm font-bold text-danger mb-1">🗑 Permanent Deletion</p>
+              <p className="text-sm text-text">
+                <strong>{test.name}</strong> will be permanently removed from the test catalog. This
+                cannot be undone.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <p className="text-sm font-bold text-warning mb-1">⚠️ Lab cascade</p>
+              <p className="text-sm text-text">
+                This test will be automatically removed from <strong>every lab</strong> that
+                currently lists it (active or inactive), along with all associated price history.
+              </p>
+              <p className="text-sm text-text-2 mt-1">
+                Only blocked if the test has been used in an active campaign.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                size="md"
+                fullWidth
+                loading={isDeleting}
+                onClick={() => void handleConfirmDelete()}
+              >
+                Delete Permanently
+              </Button>
+              <Button
+                variant="ghost"
+                size="md"
+                fullWidth
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/** A single test row being added during lab creation */
+interface PendingLabTest {
+  testId: string;
+  price: string;
+  turnaround: string;
+}
+
+function LabModal({
+  mode,
+  lab,
+  tests,
+  onClose,
+  onTestAdded,
+}: {
+  mode: 'create' | 'edit';
+  lab?: LabDetailDto;
+  tests: TestDto[];
+  onClose: () => void;
+  onTestAdded?: () => void;
+}): React.ReactElement {
+  const toast = useToast();
+  const [name, setName] = useState(lab?.name ?? '');
+  const [country, setCountry] = useState(lab?.country ?? '');
+  const [phoneNumber, setPhoneNumber] = useState(lab?.phone_number ?? '');
+  const [address, setAddress] = useState(lab?.address ?? '');
+  const [isPending, setIsPending] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // "Add Test" section state
+  const [selectedTestId, setSelectedTestId] = useState('');
+  const [newPrice, setNewPrice] = useState('');
+  const [newTurnaround, setNewTurnaround] = useState('7');
+  const [isAddingTest, setIsAddingTest] = useState(false);
+
+  // Create-mode: tests staged locally before lab is submitted
+  const [pendingTests, setPendingTests] = useState<PendingLabTest[]>([]);
+
+  const { mutateAsync: deactivateTest } = useDeactivateLabTest();
+
+  const activeTests = tests.filter((t) => t.is_active);
+
+  // IDs already attached — pending list for create, lab.tests for edit
+  const attachedTestIds = new Set(
+    mode === 'create'
+      ? pendingTests.map((r) => r.testId).filter(Boolean)
+      : (lab?.tests ?? []).map((t) => t.test_id)
+  );
+  const availableTests = activeTests.filter((t) => !attachedTestIds.has(t.id));
+  const noMoreTests = availableTests.length === 0;
+
+  // Per-row options for create mode (own test + all unselected)
+  const rowOptions = (idx: number): TestDto[] => {
+    const current = pendingTests[idx]?.testId ?? '';
+    return activeTests.filter((t) => !attachedTestIds.has(t.id) || t.id === current);
+  };
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!country.trim()) newErrors.country = 'Country is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAddTest = (): void => {
+    if (!selectedTestId || !newPrice) {
+      toast.error('Please select a test and enter a price');
       return;
     }
+    if (mode === 'create') {
+      setPendingTests((prev) => [
+        ...prev,
+        { testId: selectedTestId, price: newPrice, turnaround: newTurnaround || '7' },
+      ]);
+      setSelectedTestId('');
+      setNewPrice('');
+      setNewTurnaround('7');
+    } else {
+      void (async () => {
+        if (!lab) return;
+        setIsAddingTest(true);
+        try {
+          await labsApi.addTest(lab.id, {
+            test_id: selectedTestId,
+            price_usd: Number(newPrice),
+            typical_turnaround_days: Number(newTurnaround) || 7,
+          });
+          toast.success('Test added to lab');
+          setSelectedTestId('');
+          setNewPrice('');
+          setNewTurnaround('7');
+          onTestAdded?.();
+        } catch (error: unknown) {
+          toast.error(extractApiError(error, 'Failed to add test'));
+        } finally {
+          setIsAddingTest(false);
+        }
+      })();
+    }
+  };
+
+  const { mutateAsync: deleteLabTest } = useDeleteLabTest();
+
+  const handleRemoveTest = async (testId: string): Promise<void> => {
+    if (!lab) return;
+    try {
+      await deactivateTest({ labId: lab.id, testId });
+      toast.success('Test deactivated');
+      onTestAdded?.();
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to deactivate test'));
+    }
+  };
+
+  const handleDeleteLabTest = async (testId: string): Promise<void> => {
+    if (!lab) return;
+    try {
+      await deleteLabTest({ labId: lab.id, testId });
+      toast.success('Test permanently removed from lab');
+      onTestAdded?.();
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to delete lab test'));
+    }
+  };
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!validate()) return;
     setIsPending(true);
     try {
-      await labsApi.create({
-        name,
-        country,
-        phone_number: phoneNumber || undefined,
-        address: address || undefined,
-      });
-      toast.success('Lab created');
+      if (mode === 'create') {
+        const created = await labsApi.create({
+          name,
+          country,
+          phone_number: phoneNumber || undefined,
+          address: address || undefined,
+        });
+        for (const { testId, price, turnaround } of pendingTests) {
+          if (testId && price) {
+            await labsApi.addTest(created.data.id, {
+              test_id: testId,
+              price_usd: Number(price),
+              typical_turnaround_days: Number(turnaround) || 7,
+            });
+          }
+        }
+        toast.success('Lab created');
+      } else {
+        if (!lab) return;
+        await labsApi.update(lab.id, {
+          name,
+          country,
+          phone_number: phoneNumber || undefined,
+          address: address || undefined,
+        });
+        toast.success('Lab updated');
+      }
       onClose();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create lab');
+      toast.error(
+        extractApiError(error, mode === 'create' ? 'Failed to create lab' : 'Failed to update lab')
+      );
     } finally {
       setIsPending(false);
     }
   };
 
+  const title = mode === 'create' ? 'Create Lab' : `Edit Lab: ${lab?.name ?? ''}`;
+
   return (
-    <Modal isOpen title="Create Lab" onClose={onClose}>
+    <Modal isOpen title={title} onClose={onClose}>
       <div className="space-y-4">
+        {/* Name */}
         <div>
           <label htmlFor="lab-name" className="text-sm font-medium text-text block mb-1">
-            Name *
+            Name <span className="text-danger">*</span>
           </label>
           <input
             id="lab-name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+            onChange={(e) => {
+              setName(e.target.value);
+              if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+            }}
+            className={`w-full rounded-xl border px-3 py-2 text-sm text-text bg-surface min-h-[44px] ${
+              errors.name ? 'border-danger' : 'border-border'
+            }`}
           />
+          {errors.name && <p className="text-xs text-danger mt-1">{errors.name}</p>}
         </div>
+
+        {/* Country */}
         <div>
           <label htmlFor="lab-country" className="text-sm font-medium text-text block mb-1">
-            Country *
+            Country <span className="text-danger">*</span>
           </label>
           <input
             id="lab-country"
             type="text"
             value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+            onChange={(e) => {
+              setCountry(e.target.value);
+              if (errors.country) setErrors((prev) => ({ ...prev, country: '' }));
+            }}
+            className={`w-full rounded-xl border px-3 py-2 text-sm text-text bg-surface min-h-[44px] ${
+              errors.country ? 'border-danger' : 'border-border'
+            }`}
           />
+          {errors.country && <p className="text-xs text-danger mt-1">{errors.country}</p>}
         </div>
+
+        {/* Phone */}
         <div>
           <label htmlFor="lab-phone" className="text-sm font-medium text-text block mb-1">
-            Phone (optional)
+            Phone
           </label>
           <input
             id="lab-phone"
             type="text"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="e.g. +1 555-000-0000"
             className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
           />
         </div>
+
+        {/* Address */}
         <div>
           <label htmlFor="lab-address" className="text-sm font-medium text-text block mb-1">
-            Address (optional)
+            Address
           </label>
           <input
             id="lab-address"
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
+            placeholder="e.g. 123 Lab St, City, State"
             className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
           />
         </div>
-        <div className="flex gap-2">
+
+        {/* Lab Tests & Prices */}
+        <div className="pt-2 border-t border-border">
+          <h4 className="text-sm font-semibold text-text mb-2">Lab Tests & Prices</h4>
+
+          {/* Current test list */}
+          {(mode === 'create' ? pendingTests.length > 0 : (lab?.tests ?? []).length > 0) ? (
+            <div className="mb-3">
+              <div className="flex items-center gap-2 px-2 pb-1 text-xs text-text-3 font-medium">
+                <span className="flex-1">Test</span>
+                <span className="w-20 text-right">Price</span>
+                <span className="w-20 text-right">Days</span>
+                <span className="w-16" />
+              </div>
+              <div className="space-y-1">
+                {mode === 'create'
+                  ? pendingTests.map(({ testId, price, turnaround }, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-surface-a"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <select
+                            value={testId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPendingTests((prev) =>
+                                prev.map((r, i) => (i === idx ? { ...r, testId: val } : r))
+                              );
+                            }}
+                            className="w-full rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px]"
+                          >
+                            <option value="">Select test…</option>
+                            {rowOptions(idx).map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={price}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingTests((prev) =>
+                              prev.map((r, i) => (i === idx ? { ...r, price: val } : r))
+                            );
+                          }}
+                          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
+                        />
+                        <input
+                          type="number"
+                          placeholder="7"
+                          value={turnaround}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingTests((prev) =>
+                              prev.map((r, i) => (i === idx ? { ...r, turnaround: val } : r))
+                            );
+                          }}
+                          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-right text-text bg-surface min-h-[32px]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingTests((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="text-danger text-xs font-medium min-h-[32px] px-2 w-16 text-right"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  : (lab?.tests ?? []).map((lt) => (
+                      <LabTestPriceRow
+                        key={lt.test_id}
+                        labId={lab?.id ?? ''}
+                        labTest={lt}
+                        onRemove={() => void handleRemoveTest(lt.test_id)}
+                        onDelete={() => void handleDeleteLabTest(lt.test_id)}
+                      />
+                    ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-text-3 mb-3">No tests attached yet.</p>
+          )}
+
+          {/* Add Test section — always visible */}
+          <div className="bg-surface-a border border-border rounded-xl p-3 space-y-2">
+            <p className="text-xs font-medium text-text">Add Test to Lab</p>
+            {!noMoreTests && (
+              <>
+                <select
+                  value={selectedTestId}
+                  onChange={(e) => setSelectedTestId(e.target.value)}
+                  className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[36px]"
+                >
+                  <option value="">Select a test…</option>
+                  {availableTests.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Price (USD)"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    className="flex-1 rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[36px]"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Days"
+                    value={newTurnaround}
+                    onChange={(e) => setNewTurnaround(e.target.value)}
+                    className="w-20 rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[36px]"
+                  />
+                </div>
+              </>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="primary"
+                size="sm"
+                loading={isAddingTest}
+                disabled={noMoreTests || !selectedTestId || !newPrice}
+                onClick={handleAddTest}
+              >
+                Add
+              </Button>
+              {noMoreTests && (
+                <p className="text-xs text-text-3">No more tests available to add.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom buttons */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
+          <Button variant="ghost" size="md" onClick={onClose}>
+            Cancel
+          </Button>
           <Button
             variant="primary"
             size="md"
-            fullWidth
             loading={isPending}
-            onClick={() => void handleCreate()}
+            onClick={() => void handleSubmit()}
           >
-            Create
-          </Button>
-          <Button variant="ghost" size="md" fullWidth onClick={onClose}>
-            Cancel
+            {mode === 'create' ? 'Create' : 'Save'}
           </Button>
         </div>
       </div>
@@ -1105,130 +1667,165 @@ function CreateTestModal({ onClose }: { onClose: () => void }): React.ReactEleme
   );
 }
 
-function EditLabModal({
-  lab,
-  onClose,
+function ApproveLabButton({
+  labId,
+  labName,
 }: {
-  lab: LabDetailDto;
-  onClose: () => void;
+  labId: string;
+  labName: string;
 }): React.ReactElement {
   const toast = useToast();
-  const [labName, setLabName] = useState(lab.name);
-  const [country, setCountry] = useState(lab.country);
-  const [phoneNumber, setPhoneNumber] = useState(lab.phone_number ?? '');
-  const [address, setAddress] = useState(lab.address ?? '');
-  const [isPending, setIsPending] = useState(false);
+  const { mutateAsync: approveLab, isPending } = useApproveLab();
 
-  const handleUpdate = async (): Promise<void> => {
-    setIsPending(true);
+  const handleApprove = async (): Promise<void> => {
     try {
-      await labsApi.update(lab.id, {
-        name: labName,
-        country,
-        phone_number: phoneNumber || undefined,
-        address: address || undefined,
-      });
-      toast.success('Lab updated');
-      onClose();
+      await approveLab(labId);
+      toast.success(`${labName} approved`);
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update lab');
-    } finally {
-      setIsPending(false);
+      toast.error(error instanceof Error ? error.message : 'Failed to approve lab');
     }
   };
 
   return (
-    <Modal isOpen title={`Edit Lab: ${lab.name}`} onClose={onClose}>
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="edit-lab-name" className="text-sm font-medium text-text block mb-1">
-            Name
-          </label>
-          <input
-            id="edit-lab-name"
-            type="text"
-            value={labName}
-            onChange={(e) => setLabName(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-lab-country" className="text-sm font-medium text-text block mb-1">
-            Country
-          </label>
-          <input
-            id="edit-lab-country"
-            type="text"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-lab-phone" className="text-sm font-medium text-text block mb-1">
-            Phone
-          </label>
-          <input
-            id="edit-lab-phone"
-            type="text"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-lab-address" className="text-sm font-medium text-text block mb-1">
-            Address
-          </label>
-          <input
-            id="edit-lab-address"
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-          />
-        </div>
-
-        {/* Lab Tests */}
-        <div className="pt-2 border-t border-border">
-          <h4 className="text-sm font-semibold text-text mb-2">Lab Tests & Prices</h4>
-          <div className="space-y-2">
-            {(lab.tests ?? []).map((lt) => (
-              <LabTestPriceEditor key={lt.test_id} labId={lab.id} labTest={lt} />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant="primary"
-            size="md"
-            fullWidth
-            loading={isPending}
-            onClick={() => void handleUpdate()}
-          >
-            Save
-          </Button>
-          <Button variant="ghost" size="md" fullWidth onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </Modal>
+    <Button variant="primary" size="sm" loading={isPending} onClick={() => void handleApprove()}>
+      Approve
+    </Button>
   );
 }
 
-function LabTestPriceEditor({
+function DisableLabButton({
+  labId,
+  labName,
+}: {
+  labId: string;
+  labName: string;
+}): React.ReactElement {
+  const toast = useToast();
+  const { mutateAsync: deactivateLab, isPending } = useDeactivateLab();
+
+  const handleDisable = async (): Promise<void> => {
+    try {
+      await deactivateLab(labId);
+      toast.success(`${labName} disabled`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to disable lab');
+    }
+  };
+
+  return (
+    <Button variant="ghost" size="sm" loading={isPending} onClick={() => void handleDisable()}>
+      Disable
+    </Button>
+  );
+}
+
+function ReactivateLabButton({
+  labId,
+  labName,
+}: {
+  labId: string;
+  labName: string;
+}): React.ReactElement {
+  const toast = useToast();
+  const { mutateAsync: reactivateLab, isPending } = useReactivateLab();
+
+  const handleReactivate = async (): Promise<void> => {
+    try {
+      await reactivateLab(labId);
+      toast.success(`${labName} reactivated`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate lab');
+    }
+  };
+
+  return (
+    <Button variant="ghost" size="sm" loading={isPending} onClick={() => void handleReactivate()}>
+      Reactivate
+    </Button>
+  );
+}
+
+/**
+ * Permanently deletes a disabled lab.
+ * Only available for disabled labs; backend guards against deletion when lab-tests still exist.
+ */
+function DeleteLabButton({
+  labId,
+  labName,
+}: {
+  labId: string;
+  labName: string;
+}): React.ReactElement {
+  const toast = useToast();
+  const { mutateAsync: deleteLab, isPending } = useDeleteLab();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleConfirmDelete = async (): Promise<void> => {
+    try {
+      await deleteLab(labId);
+      toast.success(`${labName} permanently deleted`);
+      setShowConfirm(false);
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, 'Failed to delete lab'));
+    }
+  };
+
+  return (
+    <>
+      <Button variant="danger" size="sm" loading={isPending} onClick={() => setShowConfirm(true)}>
+        Delete
+      </Button>
+
+      {showConfirm && (
+        <Modal isOpen title="Permanently Delete Lab" onClose={() => setShowConfirm(false)}>
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-surface-a border border-border">
+              <p className="text-sm font-bold text-danger mb-1">🗑 Permanent Deletion</p>
+              <p className="text-sm text-text">
+                Lab <strong>{labName}</strong> will be permanently removed. This cannot be undone.
+              </p>
+              <p className="text-sm text-text-2 mt-1">
+                This will fail if the lab still has any test records attached. Remove all tests from
+                this lab first.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                size="md"
+                fullWidth
+                loading={isPending}
+                onClick={() => void handleConfirmDelete()}
+              >
+                Delete Permanently
+              </Button>
+              <Button variant="ghost" size="md" fullWidth onClick={() => setShowConfirm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+function LabTestPriceRow({
   labId,
   labTest,
+  onRemove,
+  onDelete,
 }: {
   labId: string;
   labTest: LabTestDto;
+  onRemove: () => void;
+  onDelete: () => void;
 }): React.ReactElement {
   const toast = useToast();
   const [price, setPrice] = useState(String(labTest.price_usd));
   const [turnaround, setTurnaround] = useState(String(labTest.typical_turnaround_days));
   const [isPending, setIsPending] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleUpdate = async (): Promise<void> => {
     setIsPending(true);
@@ -1245,30 +1842,117 @@ function LabTestPriceEditor({
     }
   };
 
+  const { mutateAsync: reactivateTest } = useReactivateLabTest();
+
+  const handleReactivate = async (): Promise<void> => {
+    try {
+      await reactivateTest({ labId, testId: labTest.test_id });
+      toast.success('Test reactivated');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate test');
+    }
+  };
+
+  const isInactive = !labTest.is_active;
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1">
-        <p className="text-xs font-medium text-text">{labTest.test_name}</p>
+    <>
+      <div
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${
+          isInactive ? 'bg-surface-a opacity-50' : 'bg-surface-a'
+        }`}
+      >
+        <div className="flex-1 min-w-0" title={labTest.test_name}>
+          <p className="text-xs font-medium text-text truncate">
+            {labTest.test_name}
+            {isInactive && <span className="ml-1 text-text-3">(Disabled)</span>}
+          </p>
+        </div>
+        <input
+          type="number"
+          step="0.01"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          disabled={isInactive}
+          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+        />
+        <input
+          type="number"
+          value={turnaround}
+          onChange={(e) => setTurnaround(e.target.value)}
+          disabled={isInactive}
+          className="w-20 rounded-lg border border-border px-2 py-1 text-xs text-text bg-surface min-h-[32px] disabled:opacity-50"
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          loading={isPending}
+          disabled={isInactive}
+          onClick={() => void handleUpdate()}
+        >
+          Save
+        </Button>
+        {isInactive ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void handleReactivate()}
+              className="text-primary text-xs font-medium min-h-[32px] px-2"
+            >
+              Reactivate
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-danger text-xs font-medium min-h-[32px] px-2"
+            >
+              Delete
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-danger text-xs font-medium min-h-[32px] px-2"
+          >
+            Disable
+          </button>
+        )}
       </div>
-      <input
-        type="number"
-        step="0.01"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        className="w-20 rounded-xl border border-border px-2 py-1 text-xs text-text bg-surface min-h-[36px]"
-        placeholder="Price"
-      />
-      <input
-        type="number"
-        value={turnaround}
-        onChange={(e) => setTurnaround(e.target.value)}
-        className="w-16 rounded-xl border border-border px-2 py-1 text-xs text-text bg-surface min-h-[36px]"
-        placeholder="Days"
-      />
-      <Button variant="primary" size="sm" loading={isPending} onClick={() => void handleUpdate()}>
-        Save
-      </Button>
-    </div>
+
+      {showDeleteConfirm && (
+        <Modal isOpen title="Delete Lab Test" onClose={() => setShowDeleteConfirm(false)}>
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-surface-a border border-border">
+              <p className="text-sm font-bold text-danger mb-1">🗑 Permanent Deletion</p>
+              <p className="text-sm text-text">
+                <strong>{labTest.test_name}</strong> will be permanently removed from this lab. This
+                cannot be undone. The test will become available to re-add with fresh pricing.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <p className="text-sm font-bold text-warning mb-1">⚠️ Campaign guard</p>
+              <p className="text-sm text-text-2">
+                Deletion is blocked if any campaign has requested this test at this lab.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="danger" size="md" fullWidth onClick={onDelete}>
+                Delete Permanently
+              </Button>
+              <Button
+                variant="ghost"
+                size="md"
+                fullWidth
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 

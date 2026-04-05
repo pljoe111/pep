@@ -224,6 +224,15 @@ model Campaign {
   deadline_ship_samples     DateTime?      @db.Timestamptz
   deadline_publish_results  DateTime?      @db.Timestamptz
 
+  // Relations — enforce DB-level FK constraints
+  escrow        CampaignEscrow?
+  contributions Contribution[]
+  samples       Sample[]
+  updates       CampaignUpdate[]
+  reactions     Reaction[]
+  notifications Notification[]
+  coaList       Coa[]
+
   @@index([creator_id])
   @@index([status])
   @@index([verification_code])
@@ -239,6 +248,8 @@ model CampaignEscrow {
   balance     Decimal  @default(0) @db.Decimal(18, 6)
   created_at  DateTime @default(now()) @db.Timestamptz
   updated_at  DateTime @updatedAt @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@map("campaign_escrow")
 }
@@ -290,6 +301,9 @@ model Contribution {
   contributed_at DateTime           @default(now()) @db.Timestamptz
   refunded_at    DateTime?          @db.Timestamptz
 
+  // Restrict: financial records must not be silently deleted; service guards deletion order
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Restrict)
+
   @@index([campaign_id])
   @@index([contributor_id])
   @@index([status])
@@ -308,6 +322,11 @@ model Sample {
   order_index          Int      @default(0)
   created_at           DateTime @default(now()) @db.Timestamptz
 
+  campaign     Campaign      @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  sampleClaims SampleClaim[]
+  testRequests TestRequest[]
+  coa          Coa?
+
   @@index([campaign_id])
   @@map("sample")
 }
@@ -324,6 +343,8 @@ model SampleClaim {
   mass_unit         String?   @db.VarChar(20)
   other_description String?   @db.Text
 
+  sample Sample @relation(fields: [sample_id], references: [id], onDelete: Cascade)
+
   @@map("sample_claim")
 }
 
@@ -332,6 +353,9 @@ model TestRequest {
   id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sample_id String @db.Uuid
   test_id   String @db.Uuid
+
+  sample Sample @relation(fields: [sample_id], references: [id], onDelete: Cascade)
+  test   Test   @relation(fields: [test_id], references: [id], onDelete: Restrict)
 
   @@unique([sample_id, test_id])
   @@map("test_request")
@@ -354,6 +378,9 @@ model Coa {
   verified_at         DateTime?          @db.Timestamptz
   verification_notes  String?            @db.Text
 
+  sample   Sample   @relation(fields: [sample_id], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
   @@index([campaign_id])
   @@index([verification_status])
   @@map("coa")
@@ -367,12 +394,16 @@ model Lab {
   country             String    @db.VarChar(100)
   address             String?   @db.Text
   is_approved         Boolean   @default(false)
+  is_active           Boolean   @default(true)
   approved_by_user_id String?   @db.Uuid
   approved_at         DateTime? @db.Timestamptz
   created_at          DateTime  @default(now()) @db.Timestamptz
   updated_at          DateTime  @updatedAt @db.Timestamptz
 
+  tests LabTest[]
+
   @@index([is_approved])
+  @@index([is_active])
   @@map("lab")
 }
 
@@ -386,6 +417,9 @@ model Test {
   created_by_user_id String   @db.Uuid
   created_at         DateTime @default(now()) @db.Timestamptz
 
+  labTests     LabTest[]
+  testRequests TestRequest[]
+
   @@index([is_active])
   @@map("test")
 }
@@ -397,12 +431,19 @@ model LabTest {
   test_id                 String   @db.Uuid
   price_usd               Decimal  @db.Decimal(10, 2)
   typical_turnaround_days Int
+  is_active               Boolean  @default(true)
   created_at              DateTime @default(now()) @db.Timestamptz
   updated_at              DateTime @updatedAt @db.Timestamptz
+
+  // Restrict: service code enforces deletion order; do not accidentally cascade
+  lab          Lab                   @relation(fields: [lab_id], references: [id], onDelete: Restrict)
+  test         Test                  @relation(fields: [test_id], references: [id], onDelete: Restrict)
+  priceHistory LabTestPriceHistory[]
 
   @@unique([lab_id, test_id])
   @@index([lab_id])
   @@index([test_id])
+  @@index([is_active])
   @@map("lab_test")
 }
 
@@ -416,6 +457,8 @@ model LabTestPriceHistory {
   effective_to       DateTime? @db.Timestamptz
   changed_by_user_id String    @db.Uuid
   change_reason      String?   @db.Text
+
+  labTest LabTest @relation(fields: [lab_test_id], references: [id], onDelete: Cascade)
 
   @@index([lab_test_id, effective_from])
   @@map("lab_test_price_history")
@@ -432,6 +475,8 @@ model CampaignUpdate {
   state_change_to   String?    @db.VarChar(50)
   created_at        DateTime   @default(now()) @db.Timestamptz
 
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
   @@index([campaign_id, created_at])
   @@map("campaign_update")
 }
@@ -443,6 +488,8 @@ model Reaction {
   user_id       String       @db.Uuid
   reaction_type ReactionType
   created_at    DateTime     @default(now()) @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@unique([campaign_id, user_id, reaction_type])
   @@index([campaign_id])
@@ -461,6 +508,8 @@ model Notification {
   sent_email        Boolean          @default(false)
   created_at        DateTime         @default(now()) @db.Timestamptz
   read_at           DateTime?        @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, is_read])
   @@index([user_id, created_at])

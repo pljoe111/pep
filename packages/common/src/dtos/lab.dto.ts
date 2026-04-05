@@ -89,6 +89,7 @@ export interface LabDto {
   country: string;
   address: string | null;
   is_approved: boolean;
+  is_active: boolean;
   approved_at: string | null;
   created_at: string;
 }
@@ -100,6 +101,7 @@ export interface LabTestDto {
   test_name: string;
   price_usd: number;
   typical_turnaround_days: number;
+  is_active: boolean;
 }
 
 export interface LabDetailDto extends LabDto {

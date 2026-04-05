@@ -3,6 +3,7 @@ import React from 'react';
 interface TextareaProps {
   label?: string;
   error?: string;
+  valid?: boolean;
   helperText?: string;
   id?: string;
   name?: string;
@@ -22,6 +23,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     {
       label,
       error,
+      valid,
       helperText,
       id,
       name,
@@ -63,7 +65,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             'placeholder:text-text-3 resize-y',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
             'transition-colors duration-150',
-            error ? 'border-danger' : 'border-border',
+            valid ? 'border-success' : error ? 'border-danger' : 'border-border',
             disabled ? 'opacity-50 cursor-not-allowed bg-surface-a' : '',
           ]
             .filter(Boolean)

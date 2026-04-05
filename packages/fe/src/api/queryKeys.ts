@@ -41,11 +41,12 @@ export const queryKeys = {
     unreadCount: ['notifications', 'unread-count'] as const,
   },
   labs: {
-    all: (approvedOnly: boolean) => ['labs', approvedOnly] as const,
+    all: (approvedOnly: boolean, activeOnly: boolean) =>
+      ['labs', approvedOnly, activeOnly] as const,
     detail: (id: string) => ['labs', id] as const,
   },
   tests: {
-    all: ['tests'] as const,
+    all: (activeOnly: boolean) => ['tests', activeOnly] as const,
   },
   admin: {
     campaigns: (filters: CampaignFilters & { flagged?: boolean }) =>

@@ -272,6 +272,14 @@ export class CampaignListDto {
   @IsString({ each: true })
   sample_labels!: string[];
 
+  @IsArray()
+  @IsString({ each: true })
+  vendor_names!: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  lab_names!: string[];
+
   @IsOptional()
   @IsString()
   deadline_fundraising!: string | null;

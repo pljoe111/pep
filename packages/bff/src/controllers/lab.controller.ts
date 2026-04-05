@@ -7,6 +7,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Route,
   Tags,
   Body,
@@ -41,10 +42,13 @@ export class LabController extends Controller {
   @OperationId('GetAllLabs')
   public async getAll(
     @Query() approved_only?: boolean,
+    @Query() active_only?: boolean,
     @Query() page?: number,
     @Query() limit?: number
   ): Promise<PaginatedResponseDto<LabDto>> {
-    return this.labService.findAll(approved_only, page, limit);
+    // Default to active only for campaign creation picker; admin can pass active_only=false
+    const activeOnly = active_only !== undefined ? active_only : true;
+    return this.labService.findAll(approved_only, activeOnly, page, limit);
   }
 
   /** GET /labs/:id */
@@ -110,5 +114,79 @@ export class LabController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.labService.updateTest(id, testId, body, user.userId);
+  }
+
+  /** DELETE /labs/:id/tests/:testId — deactivates (soft delete) */
+  @Delete('{id}/tests/{testId}')
+  @Security('jwt')
+  public deactivateTest(
+    @Path() id: string,
+    @Path() testId: string,
+    @Request() req: AuthRequest
+  ): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.deactivateTest(id, testId, user.userId);
+  }
+
+  /**
+   * POST /labs/:id/tests/:testId/delete — permanently deletes a disabled lab-test record.
+   * Guard: lab-test must already be inactive; fails with 409 if still active.
+   */
+  @Post('{id}/tests/{testId}/delete')
+  @Security('jwt')
+  @OperationId('PermanentDeleteLabTest')
+  public permanentDeleteLabTest(
+    @Path() id: string,
+    @Path() testId: string,
+    @Request() req: AuthRequest
+  ): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.deleteLabTest(id, testId, user.userId);
+  }
+
+  /** DELETE /labs/:id — deactivates lab and all its tests (soft delete) */
+  @Delete('{id}')
+  @Security('jwt')
+  public deactivateLab(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.deactivateLab(id, user.userId);
+  }
+
+  /**
+   * POST /labs/:id/delete — permanently deletes the lab.
+   * Guard: fails with 409 if any lab-test records (active or inactive) still exist.
+   */
+  @Post('{id}/delete')
+  @Security('jwt')
+  @OperationId('PermanentDeleteLab')
+  public permanentDeleteLab(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.deleteLab(id, user.userId);
+  }
+
+  /** POST /labs/:id/reactivate */
+  @Post('{id}/reactivate')
+  @Security('jwt')
+  public reactivateLab(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.reactivateLab(id, user.userId);
+  }
+
+  /** POST /labs/:id/tests/:testId/reactivate */
+  @Post('{id}/tests/{testId}/reactivate')
+  @Security('jwt')
+  public reactivateLabTest(
+    @Path() id: string,
+    @Path() testId: string,
+    @Request() req: AuthRequest
+  ): Promise<void> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.labService.reactivateLabTest(id, testId, user.userId);
   }
 }

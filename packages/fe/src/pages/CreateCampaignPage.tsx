@@ -202,7 +202,7 @@ function SampleForm({ index, labs, onRemove }: SampleFormProps): React.ReactElem
     register,
     watch,
     control,
-    formState: { errors, touchedFields },
+    formState: { errors },
   } = useFormContext<WizardFormValues>();
 
   const selectedLabId = watch(`samples.${index}.target_lab_id`);
@@ -257,11 +257,12 @@ function SampleForm({ index, labs, onRemove }: SampleFormProps): React.ReactElem
           type="date"
           required
           error={sampleErrors?.purchase_date?.message}
-          valid={
-            !sampleErrors?.purchase_date &&
-            !!touchedFields.samples?.[index]?.purchase_date &&
-            !!watch(`samples.${index}.purchase_date`)
-          }
+          valid={(() => {
+            const val = watch(`samples.${index}.purchase_date`);
+            if (!val) return false;
+            const parsed = new Date(val);
+            return !Number.isNaN(parsed.getTime());
+          })()}
           {...register(`samples.${index}.purchase_date`, {
             required: 'Purchase date required',
             validate: (value: string) => {
@@ -409,6 +410,7 @@ export function CreateCampaignPage(): React.ReactElement {
           country: l.country,
           address: l.address ?? '',
           is_approved: l.is_approved,
+          is_active: l.is_active,
           approved_at: l.approved_at ?? null,
           created_at: l.created_at,
           tests: [],
@@ -597,6 +599,7 @@ export function CreateCampaignPage(): React.ReactElement {
                     required
                     placeholder="e.g. Test My Protein Powder"
                     error={errors.title?.message}
+                    valid={!!watch('title')?.trim()}
                     {...register('title', { required: 'Title is required' })}
                   />
                   <Textarea
@@ -605,6 +608,7 @@ export function CreateCampaignPage(): React.ReactElement {
                     rows={5}
                     placeholder="Describe what you want tested and why..."
                     error={errors.description?.message}
+                    valid={!!watch('description')?.trim()}
                     {...register('description', { required: 'Description is required' })}
                   />
                   <Input
@@ -614,6 +618,10 @@ export function CreateCampaignPage(): React.ReactElement {
                     required
                     placeholder="500.00"
                     error={errors.amount_requested_usd?.message}
+                    valid={
+                      !!watch('amount_requested_usd') &&
+                      parseFloat(watch('amount_requested_usd')) >= 0.01
+                    }
                     {...register('amount_requested_usd', {
                       required: 'Amount is required',
                       min: { value: 0.01, message: 'Must be at least $0.01' },

@@ -666,20 +666,50 @@ export class CampaignService {
     });
     const creatorMap = new Map(creators.map((c) => [c.id, c]));
 
-    // Get sample labels per campaign
+    // Get sample labels, vendor names, and lab names per campaign
     const campaignIds = rows.map((r) => r.id);
     const samples =
       campaignIds.length > 0
         ? await this.prisma.sample.findMany({
             where: { campaign_id: { in: campaignIds } },
-            select: { campaign_id: true, sample_label: true },
+            select: {
+              campaign_id: true,
+              sample_label: true,
+              vendor_name: true,
+              target_lab_id: true,
+            },
           })
         : [];
+
+    // Fetch lab names for all target_lab_ids
+    const labIds = [...new Set(samples.map((s) => s.target_lab_id))];
+    const labs =
+      labIds.length > 0
+        ? await this.prisma.lab.findMany({
+            where: { id: { in: labIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const labNameMap = new Map(labs.map((l) => [l.id, l.name]));
+
     const sampleLabelsMap = new Map<string, string[]>();
+    const vendorNamesMap = new Map<string, string[]>();
+    const labNamesMap = new Map<string, string[]>();
     for (const s of samples) {
       const labels = sampleLabelsMap.get(s.campaign_id) ?? [];
       labels.push(s.sample_label);
       sampleLabelsMap.set(s.campaign_id, labels);
+
+      const vendors = vendorNamesMap.get(s.campaign_id) ?? [];
+      if (!vendors.includes(s.vendor_name)) vendors.push(s.vendor_name);
+      vendorNamesMap.set(s.campaign_id, vendors);
+
+      const labName = labNameMap.get(s.target_lab_id);
+      if (labName) {
+        const labNames = labNamesMap.get(s.campaign_id) ?? [];
+        if (!labNames.includes(labName)) labNames.push(labName);
+        labNamesMap.set(s.campaign_id, labNames);
+      }
     }
 
     return {
@@ -705,6 +735,8 @@ export class CampaignService {
           is_flagged_for_review: c.is_flagged_for_review,
           is_hidden: c.is_hidden,
           sample_labels: sampleLabelsMap.get(c.id) ?? [],
+          vendor_names: vendorNamesMap.get(c.id) ?? [],
+          lab_names: labNamesMap.get(c.id) ?? [],
           deadline_fundraising: c.deadline_fundraising?.toISOString() ?? null,
           time_remaining_seconds: timeRemaining,
           created_at: c.created_at.toISOString(),
@@ -756,14 +788,43 @@ export class CampaignService {
       rows.length > 0
         ? await this.prisma.sample.findMany({
             where: { campaign_id: { in: rows.map((r) => r.id) } },
-            select: { campaign_id: true, sample_label: true },
+            select: {
+              campaign_id: true,
+              sample_label: true,
+              vendor_name: true,
+              target_lab_id: true,
+            },
           })
         : [];
+
+    const labIds = [...new Set(samples.map((s) => s.target_lab_id))];
+    const labs =
+      labIds.length > 0
+        ? await this.prisma.lab.findMany({
+            where: { id: { in: labIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const labNameMap = new Map(labs.map((l) => [l.id, l.name]));
+
     const sampleLabelsMap = new Map<string, string[]>();
+    const vendorNamesMap = new Map<string, string[]>();
+    const labNamesMap = new Map<string, string[]>();
     for (const s of samples) {
       const labels = sampleLabelsMap.get(s.campaign_id) ?? [];
       labels.push(s.sample_label);
       sampleLabelsMap.set(s.campaign_id, labels);
+
+      const vendors = vendorNamesMap.get(s.campaign_id) ?? [];
+      if (!vendors.includes(s.vendor_name)) vendors.push(s.vendor_name);
+      vendorNamesMap.set(s.campaign_id, vendors);
+
+      const labName = labNameMap.get(s.target_lab_id);
+      if (labName) {
+        const labNames = labNamesMap.get(s.campaign_id) ?? [];
+        if (!labNames.includes(labName)) labNames.push(labName);
+        labNamesMap.set(s.campaign_id, labNames);
+      }
     }
 
     const user = await this.prisma.user.findUnique({
@@ -788,6 +849,8 @@ export class CampaignService {
           is_flagged_for_review: c.is_flagged_for_review,
           is_hidden: c.is_hidden,
           sample_labels: sampleLabelsMap.get(c.id) ?? [],
+          vendor_names: vendorNamesMap.get(c.id) ?? [],
+          lab_names: labNamesMap.get(c.id) ?? [],
           deadline_fundraising: c.deadline_fundraising?.toISOString() ?? null,
           time_remaining_seconds: null,
           created_at: c.created_at.toISOString(),
