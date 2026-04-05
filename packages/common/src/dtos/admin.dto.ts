@@ -82,3 +82,23 @@ export interface ConsolidationResponseDto {
   triggered: boolean;
   message: string;
 }
+
+export interface TreasuryDto {
+  master_wallet: {
+    public_key: string;
+    usdc_balance: number;
+    usdt_balance: number;
+    total_balance: number;
+    last_synced_at: string;
+  };
+  fee_account: {
+    balance: number;
+    pending_fees_estimate: number;
+    total_fees_exposure: number;
+    available_to_sweep: boolean;
+  };
+  ledger: {
+    total_user_balances: number;
+    total_escrow_balances: number;
+  };
+}

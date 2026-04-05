@@ -65,6 +65,7 @@ export const queryKeys = {
     users: (search?: string) => ['admin', 'users', search ?? ''] as const,
     userCampaigns: (userId: string, filters: { status?: string; page?: number }) =>
       ['admin', 'users', userId, 'campaigns', filters] as const,
+    treasury: ['admin', 'treasury'] as const,
   },
   users: {
     profile: (id: string) => ['users', id, 'profile'] as const,

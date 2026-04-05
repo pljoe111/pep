@@ -33,6 +33,7 @@ import type {
   AdminUpdateConfigDto,
   AdminFeeSweepDto,
   PaginatedResponseDto,
+  TreasuryDto,
 } from 'common';
 import type { AuthRequest } from '../middleware/auth.middleware';
 
@@ -193,5 +194,11 @@ export class AdminController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.consolidationService.consolidate(user.userId);
+  }
+
+  /** GET /admin/treasury — master wallet on-chain snapshot + fee exposure + ledger totals */
+  @Get('treasury')
+  public async getTreasury(): Promise<TreasuryDto> {
+    return this.adminService.getTreasury();
   }
 }

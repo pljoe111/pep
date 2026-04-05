@@ -11,6 +11,7 @@ import { CoaService } from './coa.service';
 import { ConfigurationService } from './configuration.service';
 import { withdrawalQueue, type WithdrawalJobPayload } from '../utils/queue.util';
 import { NotFoundError, ConflictError } from '../utils/errors';
+import { env } from '../config/env.config';
 import type {
   UserDto,
   AdminBanUserDto,
@@ -22,6 +23,7 @@ import type {
   CoaDto,
   CampaignDetailDto,
   PaginatedResponseDto,
+  TreasuryDto,
 } from 'common';
 import type { ClaimType } from '@prisma/client';
 
@@ -315,6 +317,67 @@ export class AdminService {
     });
 
     return { ledger_transaction_id: ledgerTxId };
+  }
+
+  // ─── §new Treasury snapshot ───────────────────────────────────────────────
+
+  async getTreasury(): Promise<TreasuryDto> {
+    const [masterWallet, feeAccount, ledgerSum, escrowSum] = await Promise.all([
+      this.prisma.masterWallet.findFirst(),
+      this.prisma.feeAccount.findFirst(),
+      this.prisma.ledgerAccount.aggregate({ _sum: { balance: true } }),
+      this.prisma.campaignEscrow.aggregate({ _sum: { balance: true } }),
+    ]);
+
+    if (masterWallet === null) {
+      throw new NotFoundError('MasterWallet singleton not found — run seed');
+    }
+    if (feeAccount === null) {
+      throw new NotFoundError('FeeAccount singleton not found — run seed');
+    }
+
+    // Pending fee estimate: sum over all active campaign escrows × each campaign's
+    // platform_fee_percent baked at creation time. Computed at read time — no new ledger rows.
+    const activeEscrows = await this.prisma.campaignEscrow.findMany({
+      where: {
+        campaign: {
+          status: { in: ['created', 'funded', 'samples_sent', 'results_published'] },
+        },
+      },
+      select: {
+        balance: true,
+        campaign: { select: { platform_fee_percent: true } },
+      },
+    });
+
+    const pendingFeesEstimate = activeEscrows.reduce((acc, escrow) => {
+      const fee = Number(escrow.balance) * (Number(escrow.campaign.platform_fee_percent) / 100);
+      return acc + fee;
+    }, 0);
+
+    const usdcBalance = Number(masterWallet.usdc_balance);
+    const usdtBalance = Number(masterWallet.usdt_balance);
+    const feeBalance = Number(feeAccount.balance);
+
+    return {
+      master_wallet: {
+        public_key: env.MASTER_WALLET_PUBLIC_KEY,
+        usdc_balance: usdcBalance,
+        usdt_balance: usdtBalance,
+        total_balance: usdcBalance + usdtBalance,
+        last_synced_at: masterWallet.updated_at.toISOString(),
+      },
+      fee_account: {
+        balance: feeBalance,
+        pending_fees_estimate: pendingFeesEstimate,
+        total_fees_exposure: feeBalance + pendingFeesEstimate,
+        available_to_sweep: feeBalance > 0,
+      },
+      ledger: {
+        total_user_balances: Number(ledgerSum._sum?.balance ?? 0),
+        total_escrow_balances: Number(escrowSum._sum?.balance ?? 0),
+      },
+    };
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────

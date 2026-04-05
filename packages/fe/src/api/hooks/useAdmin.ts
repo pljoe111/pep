@@ -1,4 +1,4 @@
-// State: admin campaign list, config, COA verification actions, user management
+// State: admin campaign list, config, COA verification actions, user management, treasury snapshot
 // Why here: All admin mutations are isolated; only used inside admin-guarded routes
 // Updates: Mutations invalidate relevant queries on success
 
@@ -11,6 +11,7 @@ import type {
   AdminRefundDto,
   AdminUpdateConfigDto,
   AdminVerifyCoaDto,
+  TreasuryDto,
 } from 'api-client';
 import { adminApi } from '../apiClient';
 import { queryKeys } from '../queryKeys';
@@ -175,5 +176,17 @@ export function useAdminFeeSweep() {
       const res = await adminApi.sweepFees(dto);
       return res.data;
     },
+  });
+}
+
+/** Admin: treasury snapshot — master wallet on-chain balances + fee exposure + ledger totals */
+export function useAdminTreasury() {
+  return useQuery({
+    queryKey: queryKeys.admin.treasury,
+    queryFn: async (): Promise<TreasuryDto> => {
+      const res = await adminApi.getTreasury();
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 min — reconciliation runs hourly; no need to over-fetch
   });
 }

@@ -11,7 +11,7 @@ interface RejectPeptideModalProps {
 }
 
 export function RejectPeptideModal({
-  peptide,
+  peptide: _peptide,
   onClose,
   onConfirm,
   isPending,

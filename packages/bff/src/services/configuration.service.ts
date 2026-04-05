@@ -27,6 +27,7 @@ export interface GlobalMinimumsConfig {
   min_funding_threshold_usd: number;
   min_funding_threshold_percent: number;
   min_withdrawal_usd: number;
+  min_creator_balance_usd: number;
 }
 
 export interface PlatformFeeConfig {

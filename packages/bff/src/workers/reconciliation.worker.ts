@@ -65,5 +65,20 @@ export function startReconciliationWorker(): void {
     } else {
       logger.info({ internalTotal, onchainTotal }, 'Reconciliation OK');
     }
+
+    // Always persist the latest on-chain snapshot to master_wallet regardless of reconciliation
+    // outcome. This row is a read-only cache — it does not participate in the ledger formula.
+    const usdcDisplay = usdcOnchain / 1_000_000;
+    const usdtDisplay = usdtOnchain / 1_000_000;
+    const masterWallet = await prisma.masterWallet.findFirst();
+    if (masterWallet !== null) {
+      await prisma.masterWallet.update({
+        where: { id: masterWallet.id },
+        data: { usdc_balance: usdcDisplay, usdt_balance: usdtDisplay },
+      });
+      logger.info({ usdcDisplay, usdtDisplay }, 'MasterWallet snapshot updated');
+    } else {
+      logger.error('MasterWallet singleton row missing — run seed');
+    }
   });
 }

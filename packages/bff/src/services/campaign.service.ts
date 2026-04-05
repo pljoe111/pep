@@ -65,6 +65,17 @@ export class CampaignService {
         this.configService.get<ValidMassUnitsConfig>('valid_mass_units'),
       ]);
 
+    // Minimum creator balance check
+    const ledgerAccount = await this.prisma.ledgerAccount.findUnique({
+      where: { user_id: userId },
+    });
+    const creatorBalance = ledgerAccount?.balance ?? new Prisma.Decimal(0);
+    if (creatorBalance.lt(new Prisma.Decimal(globalMinimums.min_creator_balance_usd))) {
+      throw new ValidationError(
+        `A minimum balance of $${globalMinimums.min_creator_balance_usd} USD is required to create a campaign`
+      );
+    }
+
     // Validate each target lab is approved
     const labIds = [...new Set(dto.samples.map((s) => s.target_lab_id))];
     const labs = await this.prisma.lab.findMany({ where: { id: { in: labIds } } });

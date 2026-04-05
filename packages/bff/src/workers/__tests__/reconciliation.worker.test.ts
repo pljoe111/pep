@@ -103,6 +103,8 @@ afterEach(async () => {
   }
   // Reset fee account back to zero so tests are independent
   await prisma.feeAccount.updateMany({ data: { balance: 0 } });
+  // Reset master wallet snapshot back to zero so tests are independent
+  await prisma.masterWallet.updateMany({ data: { usdc_balance: 0, usdt_balance: 0 } });
 
   vi.clearAllMocks();
   mockEmail.sendOperatorAlert.mockResolvedValue(undefined);
@@ -195,6 +197,20 @@ describe('ReconciliationWorker §5.1 — Balanced state', () => {
     await reconcileTick!();
 
     expect(mockEmail.sendOperatorAlert).not.toHaveBeenCalled();
+  });
+
+  it('writes the on-chain balances to MasterWallet after a successful pass', async () => {
+    await seedLedgerAccount(200);
+    await setFeeBalance(0);
+
+    // On-chain: 150 USDC + 50 USDT = 200 total — balanced
+    setOnchainBalance(150, 50);
+
+    await reconcileTick!();
+
+    const mw = await prisma.masterWallet.findFirst();
+    expect(mw?.usdc_balance.toString()).toBe('150');
+    expect(mw?.usdt_balance.toString()).toBe('50');
   });
 });
 

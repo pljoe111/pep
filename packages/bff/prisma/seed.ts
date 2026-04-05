@@ -28,6 +28,15 @@ async function main(): Promise<void> {
     console.log('  fee_account already exists — skipped');
   }
 
+  // ── Master wallet singleton ───────────────────────────────────────────────
+  const existingMasterWallet = await prisma.masterWallet.findFirst();
+  if (!existingMasterWallet) {
+    await prisma.masterWallet.create({ data: {} });
+    console.log('✔ master_wallet created');
+  } else {
+    console.log('  master_wallet already exists — skipped');
+  }
+
   // ── Configuration rows ────────────────────────────────────────────────────
   type Row = { key: string; value: unknown; description: string };
   const rows: Row[] = [
@@ -44,9 +53,10 @@ async function main(): Promise<void> {
         min_funding_threshold_usd: 0.01,
         min_funding_threshold_percent: 5,
         min_withdrawal_usd: 0.01,
+        min_creator_balance_usd: 1.0,
       },
       description:
-        'Platform-wide minimums for contributions, funding thresholds, and withdrawals (USD).',
+        'Platform-wide minimums for contributions, funding thresholds, withdrawals, and campaign creation (USD).',
     },
     {
       key: 'platform_fee_percent',
