@@ -7,7 +7,7 @@ import { CampaignDetailPage } from '../pages/CampaignDetailPage';
 import { CreateCampaignPage } from '../pages/CreateCampaignPage';
 import { MyCampaignsPage } from '../pages/MyCampaignsPage';
 import { WalletPage } from '../pages/WalletPage';
-import { AdminPage } from '../pages/AdminPage';
+import { AdminPage } from '../pages/admin/AdminPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AccountPage } from '../pages/AccountPage';
 import { OfflinePage } from '../pages/OfflinePage';

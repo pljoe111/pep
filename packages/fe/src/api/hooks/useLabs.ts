@@ -76,6 +76,39 @@ export function useDeactivateLabTest() {
   });
 }
 
+/** Add a test to a lab */
+export function useAddLabTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      labId,
+      testId,
+      price_usd,
+      typical_turnaround_days,
+      vials_required,
+      endotoxin_mode,
+    }: {
+      labId: string;
+      testId: string;
+      price_usd: number;
+      typical_turnaround_days: number;
+      vials_required: number;
+      endotoxin_mode: 'pass_fail' | 'exact_value';
+    }) => {
+      await labsApi.addTest(labId, {
+        test_id: testId,
+        price_usd,
+        typical_turnaround_days,
+        vials_required,
+        endotoxin_mode,
+      });
+    },
+    onSuccess: (_, { labId }) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.labs.detail(labId) });
+    },
+  });
+}
+
 /** Deactivate (soft delete) a lab */
 export function useDeactivateLab() {
   const qc = useQueryClient();
