@@ -1,4 +1,5 @@
 import React, { useState, useMemo, type ChangeEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { UserDto } from 'api-client';
 import { useAdminUsers, useAdminBanUser } from '../../../api/hooks/useAdmin';
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -29,7 +30,8 @@ function extractApiError(error: unknown, fallback: string): string {
 }
 
 export function UsersTab(): React.ReactElement {
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [filter, setFilter] = useState<'all' | 'banned' | 'unverified'>('all');
   const [banTarget, setBanTarget] = useState<UserDto | null>(null);
   const [viewTarget, setViewTarget] = useState<UserDto | null>(null);

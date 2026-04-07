@@ -87,6 +87,10 @@ export const env = cleanEnv(process.env, {
   /** Minimum USDC display-unit balance on master wallet before auto-consolidation triggers */
   CONSOLIDATION_THRESHOLD_USDC: num({ default: 100 }),
 
+  // ─── OCR Worker ────────────────────────────────────────────────────────────
+  /** When true, the background OCR worker will NOT start. Requires restart. */
+  DISABLE_OCR_WORKER: bool({ default: false }),
+
   // ─── Test only ─────────────────────────────────────────────────────────────
   TEST_MASTER_WALLET_PUBKEY: str({ default: '' }),
   TEST_MASTER_WALLET_KEY: str({ default: '' }),

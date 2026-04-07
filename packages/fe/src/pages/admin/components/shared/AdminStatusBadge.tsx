@@ -19,6 +19,8 @@ export function AdminStatusBadge({ status }: AdminStatusBadgeProps): React.React
     banned: 'red',
     unverified: 'amber',
     verified: 'green',
+    code_found: 'green',
+    code_not_found: 'red',
   };
 
   const labelMap: Record<string, string> = {
@@ -33,6 +35,8 @@ export function AdminStatusBadge({ status }: AdminStatusBadgeProps): React.React
     banned: 'Banned',
     unverified: 'Unverified',
     verified: 'Email Verified',
+    code_found: 'OCR result: Code Found',
+    code_not_found: 'OCR result: Code Not Found',
   };
 
   const variant: BadgeVariant = variantMap[status] ?? 'gray';

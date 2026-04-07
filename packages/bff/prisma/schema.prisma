@@ -132,6 +132,8 @@ model User {
   created_at               DateTime @default(now()) @db.Timestamptz
   updated_at               DateTime @updatedAt @db.Timestamptz
 
+  campaigns Campaign[] @relation("CampaignCreator")
+
   @@index([email])
   @@index([username])
   @@map("user")
@@ -242,6 +244,7 @@ model Campaign {
   deadline_publish_results  DateTime?      @db.Timestamptz
 
   // Relations — enforce DB-level FK constraints
+  creator       User             @relation("CampaignCreator", fields: [creator_id], references: [id], onDelete: Restrict)
   escrow        CampaignEscrow?
   contributions Contribution[]
   samples       Sample[]
@@ -354,6 +357,7 @@ model Sample {
   created_at           DateTime @default(now()) @db.Timestamptz
 
   campaign     Campaign      @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  target_lab   Lab           @relation(fields: [target_lab_id], references: [id])
   peptide      Peptide?      @relation(fields: [peptide_id], references: [id], onDelete: SetNull)
   vendor       Vendor?       @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
   sampleClaims SampleClaim[]
@@ -423,6 +427,7 @@ model Coa {
   verified_by_user_id String?            @db.Uuid
   verified_at         DateTime?          @db.Timestamptz
   verification_notes  String?            @db.Text
+  rejection_count     Int                @default(0)
 
   sample   Sample   @relation(fields: [sample_id], references: [id], onDelete: Cascade)
   campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
@@ -446,7 +451,8 @@ model Lab {
   created_at          DateTime  @default(now()) @db.Timestamptz
   updated_at          DateTime  @updatedAt @db.Timestamptz
 
-  tests LabTest[]
+  tests   LabTest[]
+  samples Sample[]
 
   @@index([is_approved])
   @@index([is_active])

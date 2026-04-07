@@ -1,6 +1,7 @@
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import type { ClaimType } from './user.dto';
 import type { Currency } from './wallet.dto';
+import type { VerificationStatus } from './campaign.dto';
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 
@@ -101,4 +102,30 @@ export interface TreasuryDto {
     total_user_balances: number;
     total_escrow_balances: number;
   };
+}
+
+// ─── COA Admin DTOs ───────────────────────────────────────────────────────────
+
+export interface AdminCoaDto {
+  id: string;
+  sample_id: string;
+  campaign_id: string;
+  campaign_title: string;
+  campaign_verification_code: number;
+  sample_label: string;
+  file_url: string;
+  file_name: string;
+  file_size_bytes: number;
+  uploaded_at: string;
+  verification_status: VerificationStatus;
+  verification_notes: string | null;
+  verified_at: string | null;
+  ocr_text: string | null;
+  lab_name: string;
+  test_names: string[];
+  sample_mass: string | null;
+  creator_id: string;
+  creator_email: string;
+  creator_username: string | null;
+  rejection_count: number;
 }

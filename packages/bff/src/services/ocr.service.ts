@@ -33,8 +33,17 @@ export class OcrService {
     const parsed = await pdfParse(pdfBuffer);
     const text = parsed.text ?? '';
 
-    const pattern = new RegExp(`\\b${verificationCode}\\b`);
-    const codeFound = pattern.test(text);
+    // Primary: digit-boundary lookarounds — robust against signed PDFs where
+    // pdf-parse may produce "B260220833460" (no space between chars) that breaks \b.
+    const strictPattern = new RegExp(`(?<!\\d)${verificationCode}(?!\\d)`);
+
+    // Fallback: strip all non-digit characters and search the resulting digit-only
+    // string. Catches PDFs where glyphs are extracted without any separators at all.
+    const digitsOnly = text.replace(/\D/g, '');
+    const codeStr = String(verificationCode);
+    const fallbackFound = digitsOnly.includes(codeStr);
+
+    const codeFound = strictPattern.test(text) || fallbackFound;
 
     logger.info({ s3Key, codeFound, textLength: text.length }, 'OCR processing complete');
 

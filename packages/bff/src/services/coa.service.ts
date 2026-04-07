@@ -11,6 +11,7 @@ import { NotificationService } from './notification.service';
 import { StorageService } from './storage.service';
 import { CampaignService } from './campaign.service';
 import { ConfigurationService, type MaxFileSizeConfig } from './configuration.service';
+import { OcrService } from './ocr.service';
 import { ocrQueue, type OcrJobPayload } from '../utils/queue.util';
 import { ConflictError, NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import type { CoaDto, AdminVerifyCoaDto } from 'common';
@@ -25,7 +26,8 @@ export class CoaService {
     @inject(NotificationService) private readonly notifService: NotificationService,
     @inject(StorageService) private readonly storageService: StorageService,
     @inject(CampaignService) private readonly campaignService: CampaignService,
-    @inject(ConfigurationService) private readonly configService: ConfigurationService
+    @inject(ConfigurationService) private readonly configService: ConfigurationService,
+    @inject(OcrService) private readonly ocrService: OcrService
   ) {}
 
   /**
@@ -168,7 +170,7 @@ export class CoaService {
       const verifiedCoas = await this.prisma.coa.count({
         where: {
           campaign_id: coa.campaign_id,
-          verification_status: { in: ['code_found', 'manually_approved'] },
+          verification_status: { in: ['manually_approved'] },
         },
       });
 
@@ -205,19 +207,23 @@ export class CoaService {
         entityId: coaId,
       });
     } else {
-      // Rejected
+      // Rejected — increment per-COA counter, check 3-strikes for this sample
       const campaign = await this.prisma.campaign.findUniqueOrThrow({
         where: { id: coa.campaign_id },
       });
-      await this.prisma.coa.update({
+
+      // Single update: mark rejected AND increment rejection_count atomically
+      const updatedCoa = await this.prisma.coa.update({
         where: { id: coaId },
         data: {
           verification_status: 'rejected',
           verified_by_user_id: callerId,
           verified_at: new Date(),
           ...(dto.notes !== undefined ? { verification_notes: dto.notes } : {}),
+          rejection_count: { increment: 1 },
         },
       });
+
       await this.prisma.campaign.update({
         where: { id: coa.campaign_id },
         data: {
@@ -226,13 +232,32 @@ export class CoaService {
         },
       });
 
-      await this.notifService.send(
-        campaign.creator_id,
-        'coa_uploaded',
-        coa.campaign_id,
-        'COA Rejected',
-        `Your COA for sample was rejected: ${dto.notes ?? 'no reason given'}`
-      );
+      if (updatedCoa.rejection_count >= 3) {
+        // 3 strikes on this specific sample — auto-refund the whole campaign
+        await this.campaignService.refundContributions(
+          coa.campaign_id,
+          'Campaign auto-refunded: 3 COAs rejected for the same sample — potential fraud'
+        );
+        this.audit.log({
+          userId: callerId,
+          action: 'campaign.auto_refunded_3_strikes',
+          entityType: 'campaign',
+          entityId: coa.campaign_id,
+          changes: {
+            reason: '3 COAs rejected for same sample',
+            coa_id: coaId,
+            rejection_count: updatedCoa.rejection_count,
+          },
+        });
+      } else {
+        await this.notifService.send(
+          campaign.creator_id,
+          'coa_uploaded',
+          coa.campaign_id,
+          'COA Rejected',
+          `Your COA for this sample was rejected: ${dto.notes ?? 'no reason given'}. This sample has ${updatedCoa.rejection_count}/3 rejections. After 3 rejections on the same sample, the campaign will be auto-refunded.`
+        );
+      }
 
       this.audit.log({
         userId: callerId,
@@ -265,6 +290,52 @@ export class CoaService {
         verification_status: codeFound ? 'code_found' : 'code_not_found',
       },
     });
+  }
+
+  /**
+   * Run OCR synchronously for admin on-demand trigger.
+   * Resets any prior admin verification so the admin can re-review.
+   */
+  async runOcrForAdmin(coaId: string): Promise<CoaDto> {
+    const coa = await this.prisma.coa.findUnique({ where: { id: coaId } });
+    if (coa === null) throw new NotFoundError('COA not found');
+
+    const campaign = await this.prisma.campaign.findUnique({ where: { id: coa.campaign_id } });
+    if (campaign === null) throw new NotFoundError('Campaign not found');
+
+    const result = await this.ocrService.processCoaPdf(coa.s3_key, campaign.verification_code);
+
+    const updated = await this.prisma.coa.update({
+      where: { id: coaId },
+      data: {
+        ocr_text: result.text,
+        verification_status: result.codeFound ? 'code_found' : 'code_not_found',
+        // Reset any prior admin decision so they can re-review
+        verified_by_user_id: null,
+        verified_at: null,
+        verification_notes: null,
+      },
+    });
+
+    this.audit.log({
+      userId: 'system',
+      action: 'coa.ocr_rerun',
+      entityType: 'coa',
+      entityId: coaId,
+      changes: { codeFound: result.codeFound },
+    });
+
+    return {
+      id: updated.id,
+      sample_id: updated.sample_id,
+      file_url: await this.storageService.getSignedUrl(updated.s3_key),
+      file_name: updated.file_name,
+      file_size_bytes: updated.file_size_bytes,
+      uploaded_at: updated.uploaded_at.toISOString(),
+      verification_status: updated.verification_status,
+      verification_notes: updated.verification_notes,
+      verified_at: updated.verified_at?.toISOString() ?? null,
+    };
   }
 
   private async notifyReviewers(campaignId: string, _coaId: string): Promise<void> {

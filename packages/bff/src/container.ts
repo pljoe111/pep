@@ -4,6 +4,7 @@
  */
 import 'reflect-metadata';
 import { container } from 'tsyringe';
+import { env } from './config/env.config';
 
 // ─── Services ────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,9 @@ if (process.env.NODE_ENV !== 'test' && typeof process !== 'undefined') {
       startDepositScannerWorker();
     });
     void import('./workers/ocr.worker').then(({ startOcrWorker }) => {
-      startOcrWorker();
+      if (!env.DISABLE_OCR_WORKER) {
+        startOcrWorker();
+      }
     });
     void import('./workers/email.worker').then(({ startEmailWorker }) => {
       startEmailWorker();

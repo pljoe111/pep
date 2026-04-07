@@ -24,6 +24,7 @@ import type {
   FeeSweepResponseDto,
   ConsolidationResponseDto,
   CoaDto,
+  AdminCoaDto,
   AdminRefundDto,
   AdminHideCampaignDto,
   AdminFlagCampaignDto,
@@ -117,6 +118,22 @@ export class AdminController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.adminService.verifyCoa(user.userId, id, body);
+  }
+
+  /** GET /admin/coas — list all COAs with optional status filter */
+  @Get('coas')
+  public async listCoas(
+    @Query() status?: string,
+    @Query() page?: number,
+    @Query() limit?: number
+  ): Promise<PaginatedResponseDto<AdminCoaDto>> {
+    return this.adminService.listCoas(status, page, limit);
+  }
+
+  /** POST /admin/coas/:id/run-ocr — trigger OCR synchronously */
+  @Post('coas/{id}/run-ocr')
+  public async runOcr(@Path() id: string, @Request() _req: AuthRequest): Promise<CoaDto> {
+    return this.adminService.runOcr(id);
   }
 
   /** GET /admin/users */

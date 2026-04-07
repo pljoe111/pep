@@ -9,6 +9,7 @@ import { AuditService } from './audit.service';
 import { CampaignService } from './campaign.service';
 import { CoaService } from './coa.service';
 import { ConfigurationService } from './configuration.service';
+import { StorageService } from './storage.service';
 import { withdrawalQueue, type WithdrawalJobPayload } from '../utils/queue.util';
 import { NotFoundError, ConflictError } from '../utils/errors';
 import { env } from '../config/env.config';
@@ -21,6 +22,7 @@ import type {
   AdminFeeSweepDto,
   AdminVerifyCoaDto,
   CoaDto,
+  AdminCoaDto,
   CampaignDetailDto,
   PaginatedResponseDto,
   TreasuryDto,
@@ -36,7 +38,8 @@ export class AdminService {
     @inject(AuditService) private readonly audit: AuditService,
     @inject(CampaignService) private readonly campaignService: CampaignService,
     @inject(CoaService) private readonly coaService: CoaService,
-    @inject(ConfigurationService) private readonly configService: ConfigurationService
+    @inject(ConfigurationService) private readonly configService: ConfigurationService,
+    @inject(StorageService) private readonly storageService: StorageService
   ) {}
 
   // ─── Admin campaign operations ────────────────────────────────────────────
@@ -182,6 +185,93 @@ export class AdminService {
 
   async verifyCoa(adminUserId: string, coaId: string, dto: AdminVerifyCoaDto): Promise<CoaDto> {
     return this.coaService.verifyCoa(adminUserId, coaId, dto);
+  }
+
+  async listCoas(
+    status?: string,
+    page = 1,
+    limit = 20
+  ): Promise<PaginatedResponseDto<AdminCoaDto>> {
+    const skip = (page - 1) * limit;
+    const where: Prisma.CoaWhereInput = status
+      ? { verification_status: status as Prisma.EnumVerificationStatusFilter }
+      : {};
+
+    const coaQuery = {
+      where,
+      orderBy: { uploaded_at: 'desc' } as const,
+      skip,
+      take: limit,
+      include: {
+        campaign: {
+          select: {
+            title: true,
+            verification_code: true,
+            creator_id: true,
+            creator: { select: { email: true, username: true } },
+          },
+        },
+        sample: {
+          include: {
+            target_lab: { select: { name: true } },
+            testRequests: {
+              include: {
+                test: { select: { name: true } },
+              },
+            },
+            sampleClaims: {
+              where: {
+                claim_type: 'mass' as const,
+              },
+            },
+          },
+        },
+      },
+    } satisfies Parameters<typeof this.prisma.coa.findMany>[0];
+
+    type CoaWithIncludes = Prisma.CoaGetPayload<typeof coaQuery>;
+
+    const [coas, total] = await Promise.all([
+      this.prisma.coa.findMany(coaQuery) as Promise<CoaWithIncludes[]>,
+      this.prisma.coa.count({ where }),
+    ]);
+
+    const dtos = await Promise.all(
+      coas.map(async (coa: CoaWithIncludes) => {
+        const massClaim = coa.sample.sampleClaims[0];
+        return {
+          id: coa.id,
+          sample_id: coa.sample_id,
+          campaign_id: coa.campaign_id,
+          campaign_title: coa.campaign.title,
+          campaign_verification_code: coa.campaign.verification_code,
+          sample_label: coa.sample.sample_label,
+          file_url: await this.storageService.getSignedUrl(coa.s3_key),
+          file_name: coa.file_name,
+          file_size_bytes: coa.file_size_bytes,
+          uploaded_at: coa.uploaded_at.toISOString(),
+          verification_status: coa.verification_status,
+          verification_notes: coa.verification_notes,
+          verified_at: coa.verified_at?.toISOString() ?? null,
+          ocr_text: coa.ocr_text,
+          lab_name: coa.sample.target_lab.name,
+          test_names: coa.sample.testRequests.map((tr) => tr.test.name),
+          sample_mass: massClaim
+            ? `${massClaim.mass_amount?.toString() ?? '0'} ${massClaim.mass_unit ?? ''}`
+            : null,
+          creator_id: coa.campaign.creator_id,
+          creator_email: coa.campaign.creator.email,
+          creator_username: coa.campaign.creator.username,
+          rejection_count: coa.rejection_count,
+        };
+      })
+    );
+
+    return { data: dtos, total, page, limit };
+  }
+
+  async runOcr(coaId: string): Promise<CoaDto> {
+    return this.coaService.runOcrForAdmin(coaId);
   }
 
   // ─── User management ──────────────────────────────────────────────────────

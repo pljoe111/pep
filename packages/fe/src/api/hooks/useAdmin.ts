@@ -123,6 +123,7 @@ export function useAdminVerifyCoa() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.admin.campaigns({}) });
+      void qc.invalidateQueries({ queryKey: ['admin', 'coas'] });
     },
   });
 }
@@ -188,5 +189,30 @@ export function useAdminTreasury() {
       return res.data;
     },
     staleTime: 5 * 60 * 1000, // 5 min — reconciliation runs hourly; no need to over-fetch
+  });
+}
+
+/** Admin: list COAs with filters */
+export function useAdminCoas(filters: { status?: string; page?: number } = {}) {
+  return useQuery({
+    queryKey: queryKeys.admin.coas(filters),
+    queryFn: async () => {
+      const res = await adminApi.listCoas(filters.status, filters.page ?? 1, 20);
+      return res.data;
+    },
+  });
+}
+
+/** Admin: run OCR on demand */
+export function useAdminRunOcr() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await adminApi.runOcr(id);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'coas'] });
+    },
   });
 }
