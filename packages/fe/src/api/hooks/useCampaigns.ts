@@ -17,7 +17,7 @@ import type { CampaignFilters } from '../queryKeys';
 const FEED_STALE_TIME = 5 * 60 * 1000; // 5 minutes for offline support
 
 /** Infinite scroll feed of campaigns */
-export function useCampaignFeed(filters: CampaignFilters) {
+export function useCampaignsFeed(filters: CampaignFilters) {
   return useInfiniteQuery({
     queryKey: queryKeys.campaigns.list(filters),
     queryFn: async ({ pageParam = 1 }) => {

@@ -53,7 +53,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ): React.ReactElement => {
     const inputId = id ?? name;
     return (
-      <div className={`flex flex-col gap-1 ${className}`}>
+      <div className="flex flex-col gap-1">
         {label && (
           <label htmlFor={inputId} className="text-sm font-medium text-text">
             {label}
@@ -86,6 +86,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             'min-h-[44px]',
             valid ? 'border-success' : error ? 'border-danger' : 'border-border',
             disabled ? 'opacity-50 cursor-not-allowed bg-surface-a' : '',
+            className,
           ]
             .filter(Boolean)
             .join(' ')}

@@ -7,6 +7,7 @@ import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useUnreadNotificationCount,
 } from '../../api/hooks/useNotifications';
 import { NotificationDto } from 'api-client';
 
@@ -20,12 +21,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
   const [allNotifications, setAllNotifications] = useState<NotificationDto[]>([]);
 
   const { data: notifications, isLoading, isFetching } = useNotifications(page);
+  const { data: unreadData } = useUnreadNotificationCount();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   // Append new notifications when page changes
   useEffect(() => {
-    if (notifications) {
+    if (notifications && notifications.length > 0) {
       if (page === 1) {
         setAllNotifications(notifications);
       } else {
@@ -57,8 +59,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
 
   const hasNextPage = notifications && notifications.length > 0; // Simple check for now
 
+  const title = unreadData?.count ? `Notifications (${unreadData.count})` : 'Notifications';
+
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Notifications">
+    <Sheet isOpen={isOpen} onClose={onClose} title={title}>
       <div className="flex flex-col gap-4">
         <div className="flex justify-end">
           <Button

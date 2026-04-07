@@ -6,6 +6,7 @@ import { AdminPage } from '../pages/admin/AdminPage';
 import { LoginPage } from '../pages/LoginPage';
 import { OfflinePage } from '../pages/OfflinePage';
 import { VerifyEmailPage } from '../pages/VerifyEmailPage';
+import HomePage from '../pages/home/HomePage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -64,7 +65,7 @@ function AppRoutes(): React.ReactElement {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/" element={<div>Home Page (Rewriting...)</div>} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/campaigns/:id" element={<div>Campaign Detail (Rewriting...)</div>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
