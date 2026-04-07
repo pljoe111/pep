@@ -481,3 +481,145 @@ The following screens need to be designed/implemented in the admin panel fronten
 
 - **Manual Fee Sweep card** — shows fee account balance, destination address input, confirm modal before executing sweep to USDC + USDT. API: `POST /admin/fee-sweep`.
 - Future: consolidation trigger, treasury snapshot viewer (APIs already exist at `POST /admin/consolidate` and `GET /admin/treasury`).
+
+---
+
+## Session 2026-04-07 — COA Manual Approval Flow + 3-Strikes Auto-Refund
+
+> Commit: `feat(coa): manual admin approval flow + 3-strikes auto-refund`
+> 20 files changed, 1 366 insertions, 18 deletions.
+
+### Database
+
+#### Schema changes ([`packages/bff/prisma/schema.prisma`](packages/bff/prisma/schema.prisma))
+
+| Model      | Change                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| `Coa`      | Added `rejection_count Int @default(0)` — monotonic counter incremented on every manual rejection |
+| `Campaign` | Added explicit `creator User @relation("CampaignCreator", ...)` relation                          |
+| `User`     | Added back-relation `campaigns Campaign[] @relation("CampaignCreator")`                           |
+| `Sample`   | Added explicit `target_lab Lab @relation(fields: [target_lab_id], references: [id])` relation     |
+| `Lab`      | Added back-relation `samples Sample[]`                                                            |
+
+#### Migrations
+
+| File                                                                                                                                    | Description                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [`20260405200000_coa_rejection_count`](packages/bff/prisma/migrations/20260405200000_coa_rejection_count/migration.sql)                 | Intermediate: added `coa_rejection_count` column to `campaign`                                                                 |
+| [`20260407160000_coa_rejection_count_per_coa`](packages/bff/prisma/migrations/20260407160000_coa_rejection_count_per_coa/migration.sql) | Final: drops `campaign.coa_rejection_count`, adds `coa.rejection_count` (per-sample granularity is better for fraud detection) |
+
+---
+
+### Backend — BFF
+
+#### [`coa.service.ts`](packages/bff/src/services/coa.service.ts)
+
+- **Decoupled advancement**: only `manually_approved` status can advance a campaign to `results_published`. OCR signals (`code_found` / `code_not_found`) are now purely informational — they no longer gate progression.
+- **3-strikes auto-refund**: on every manual rejection the service atomically increments `coa.rejection_count`. When the count reaches **3** the campaign is immediately force-refunded via the existing `CampaignService.refundContributions` path.
+- Rejection path is idempotent — re-rejecting an already-rejected COA is a no-op.
+
+#### [`admin.service.ts`](packages/bff/src/services/admin.service.ts)
+
+- `listCoas()` now deep-joins: creator email + username, lab name, target test names, sample mass, OCR text excerpt, and `rejection_count`.
+
+#### [`admin.controller.ts`](packages/bff/src/controllers/admin.controller.ts)
+
+Two new endpoints added (both require `admin` claim):
+
+| Method | Path                      | Description                                                                        |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------- |
+| `GET`  | `/admin/coas`             | Paginated, filterable (`status`, `campaign_id`, `page`, `limit`) COA list          |
+| `POST` | `/admin/coas/:id/run-ocr` | Synchronous on-demand OCR — triggers OCR immediately and returns refreshed COA row |
+
+#### [`ocr.service.ts`](packages/bff/src/services/ocr.service.ts)
+
+- Refactored `processCoaOcr()` to be callable synchronously from the controller, not only from the background worker.
+
+#### [`env.config.ts`](packages/bff/src/config/env.config.ts)
+
+- Added `DISABLE_OCR_WORKER: bool({ default: false })` — when `true`, the background OCR worker is not started. Useful for local dev and CI environments.
+
+#### [`container.ts`](packages/bff/src/container.ts)
+
+- OCR background worker startup is now gated behind `env.DISABLE_OCR_WORKER`.
+
+#### [`packages/common/src/dtos/admin.dto.ts`](packages/common/src/dtos/admin.dto.ts)
+
+`AdminCoaDto` gained four new fields:
+
+| Field              | Type     | Notes                           |
+| ------------------ | -------- | ------------------------------- |
+| `creator_id`       | `string` | UUID of campaign creator        |
+| `creator_email`    | `string` | For admin reference             |
+| `creator_username` | `string` | Display name                    |
+| `rejection_count`  | `number` | Current per-COA rejection count |
+
+---
+
+### Backend — Tests
+
+#### [`coa.service.test.ts`](packages/bff/src/services/__tests__/coa.service.test.ts) _(new file)_
+
+New test cases covering:
+
+- First rejection increments `rejection_count` to 1.
+- Second rejection increments to 2 — no refund triggered.
+- Third rejection increments to 3 — `refundContributions` is called.
+- Approving a COA advances campaign status to `results_published`.
+- Re-rejecting an already-rejected COA is a no-op (idempotent).
+
+---
+
+### Frontend — Admin UI
+
+#### [`AdminPage.tsx`](packages/fe/src/pages/admin/AdminPage.tsx)
+
+- Added **"COAs"** tab to the admin tab bar.
+- All tabs now read/write a `tab` URL search parameter so tabs are deep-linkable and survive page refresh.
+
+#### [`CoasTab.tsx`](packages/fe/src/pages/admin/tabs/CoasTab.tsx) _(new file)_
+
+Full COA management view:
+
+- Paginated list with full context per row: campaign name, creator, lab, target tests, sample mass, COA status badge, rejection count badge.
+- Inline accordion **PDF viewer** — admins can inspect the document without leaving the list.
+- **Run OCR** action button per row.
+- Filter bar: status (`pending_review`, `manually_approved`, `manually_rejected`, `code_found`, `code_not_found`).
+
+#### [`CoaVerifyModal.tsx`](packages/fe/src/pages/admin/components/coas/CoaVerifyModal.tsx) _(new file)_
+
+- Approve / Reject modal with optional verification notes.
+- Displays a **rejection-count warning** when `rejection_count >= 2`, alerting the admin that the next rejection will auto-refund the campaign.
+
+#### [`AdminStatusBadge.tsx`](packages/fe/src/pages/admin/components/shared/AdminStatusBadge.tsx)
+
+- Extended with new variants: `code_found`, `code_not_found`, `manually_approved`, `manually_rejected`, `pending_review`.
+
+#### [`useAdmin.ts`](packages/fe/src/api/hooks/useAdmin.ts)
+
+Three new React Query hooks:
+
+| Hook                    | Method | Endpoint                  |
+| ----------------------- | ------ | ------------------------- |
+| `useAdminCoas(filters)` | `GET`  | `/admin/coas`             |
+| `useVerifyCoa()`        | `POST` | `/admin/coas/:id/verify`  |
+| `useRunOcr()`           | `POST` | `/admin/coas/:id/run-ocr` |
+
+#### [`queryKeys.ts`](packages/fe/src/api/queryKeys.ts)
+
+- Added `adminCoas` key factory: `['admin', 'coas', filters]`.
+
+#### [`UsersTab.tsx`](packages/fe/src/pages/admin/tabs/UsersTab.tsx)
+
+- Minor: reads/writes `search` URL search param (consistent with new deep-linking pattern).
+
+---
+
+### Design decisions
+
+| Decision                               | Rationale                                                                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Counter lives on `Coa`, not `Campaign` | Tracking per-sample is more precise — you know exactly which COA triggered the refund, and a campaign with multiple samples can have different COA health |
+| Auto-refund at 3 rejections, not 2     | Gives creators one more attempt after the first two rejections before losing the campaign                                                                 |
+| OCR signals decoupled from advancement | Prevents a broken OCR model from blocking legitimate campaigns; human review is always the final gate                                                     |
+| `DISABLE_OCR_WORKER` flag              | Lets local dev / CI run without GPU/API keys; on-demand OCR endpoint covers manual testing                                                                |

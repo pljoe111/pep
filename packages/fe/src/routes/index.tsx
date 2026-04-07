@@ -2,17 +2,10 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Spinner } from '../components/ui/Spinner';
-import { HomePage } from '../pages/HomePage';
-import { CampaignDetailPage } from '../pages/CampaignDetailPage';
-import { CreateCampaignPage } from '../pages/CreateCampaignPage';
-import { MyCampaignsPage } from '../pages/MyCampaignsPage';
-import { WalletPage } from '../pages/WalletPage';
 import { AdminPage } from '../pages/admin/AdminPage';
 import { LoginPage } from '../pages/LoginPage';
-import { AccountPage } from '../pages/AccountPage';
 import { OfflinePage } from '../pages/OfflinePage';
 import { VerifyEmailPage } from '../pages/VerifyEmailPage';
-import { UserPage } from '../pages/UserPage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -56,7 +49,7 @@ function NotFoundPage(): React.ReactElement {
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-4 text-center">
       <h1 className="text-4xl font-extrabold text-text mb-3">404</h1>
-      <p className="text-text-2 mb-6">This page doesn&apos;t exist.</p>
+      <p className="text-text-2 mb-6">This page doesn't exist.</p>
       <a
         href="/"
         className="px-5 py-3 bg-primary text-white rounded-xl font-semibold min-h-[44px] flex items-center"
@@ -71,8 +64,8 @@ function AppRoutes(): React.ReactElement {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+      <Route path="/" element={<div>Home Page (Rewriting...)</div>} />
+      <Route path="/campaigns/:id" element={<div>Campaign Detail (Rewriting...)</div>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/offline" element={<OfflinePage />} />
@@ -82,7 +75,7 @@ function AppRoutes(): React.ReactElement {
         path="/create"
         element={
           <ProtectedRoute>
-            <CreateCampaignPage />
+            <div>Create Campaign (Rewriting...)</div>
           </ProtectedRoute>
         }
       />
@@ -90,7 +83,7 @@ function AppRoutes(): React.ReactElement {
         path="/wallet"
         element={
           <ProtectedRoute>
-            <WalletPage />
+            <div>Wallet (Rewriting...)</div>
           </ProtectedRoute>
         }
       />
@@ -98,7 +91,7 @@ function AppRoutes(): React.ReactElement {
         path="/my-campaigns"
         element={
           <ProtectedRoute>
-            <MyCampaignsPage />
+            <div>My Campaigns (Rewriting...)</div>
           </ProtectedRoute>
         }
       />
@@ -106,13 +99,13 @@ function AppRoutes(): React.ReactElement {
         path="/account"
         element={
           <ProtectedRoute>
-            <AccountPage />
+            <div>Account (Rewriting...)</div>
           </ProtectedRoute>
         }
       />
 
       {/* Public user profiles */}
-      <Route path="/users/:id" element={<UserPage />} />
+      <Route path="/users/:id" element={<div>User Profile (Rewriting...)</div>} />
 
       {/* Admin-only routes */}
       <Route
