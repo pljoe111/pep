@@ -9,6 +9,9 @@ import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 import HomePage from '../pages/home/HomePage';
 import CampaignDetailPage from '../pages/campaign-detail/CampaignDetailPage';
 import CreateCampaignPage from '../pages/create-campaign/CreateCampaignPage';
+import MyCampaignsPage from '../pages/my-campaigns/MyCampaignsPage';
+import WalletPage from '../pages/wallet/WalletPage';
+import AccountPage from '../pages/account/AccountPage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -86,7 +89,7 @@ function AppRoutes(): React.ReactElement {
         path="/wallet"
         element={
           <ProtectedRoute>
-            <div>Wallet (Rewriting...)</div>
+            <WalletPage />
           </ProtectedRoute>
         }
       />
@@ -94,7 +97,7 @@ function AppRoutes(): React.ReactElement {
         path="/my-campaigns"
         element={
           <ProtectedRoute>
-            <div>My Campaigns (Rewriting...)</div>
+            <MyCampaignsPage />
           </ProtectedRoute>
         }
       />
@@ -102,7 +105,7 @@ function AppRoutes(): React.ReactElement {
         path="/account"
         element={
           <ProtectedRoute>
-            <div>Account (Rewriting...)</div>
+            <AccountPage />
           </ProtectedRoute>
         }
       />

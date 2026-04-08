@@ -4,6 +4,7 @@
 import { inject } from 'tsyringe';
 import { Controller, Get, Post, Route, Tags, Body, Request, Security, Query } from 'tsoa';
 import { WalletService } from '../services/wallet.service';
+import { ContributionService } from '../services/contribution.service';
 import type {
   WalletBalanceDto,
   DepositAddressDto,
@@ -11,6 +12,7 @@ import type {
   WithdrawResponseDto,
   LedgerTransactionDto,
   PaginatedResponseDto,
+  ContributionDto,
 } from 'common';
 import type { AuthRequest } from '../middleware/auth.middleware';
 
@@ -18,7 +20,10 @@ import type { AuthRequest } from '../middleware/auth.middleware';
 @Tags('Wallet')
 @Security('jwt')
 export class WalletController extends Controller {
-  constructor(@inject(WalletService) private readonly walletService: WalletService) {
+  constructor(
+    @inject(WalletService) private readonly walletService: WalletService,
+    @inject(ContributionService) private readonly contributionService: ContributionService
+  ) {
     super();
   }
 
@@ -66,5 +71,18 @@ export class WalletController extends Controller {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
     const user = req.user;
     return this.walletService.getTransactions(user.userId, page, limit, type);
+  }
+
+  /** GET /wallet/contributions */
+  @Get('contributions')
+  public async getMyContributions(
+    @Request() req: AuthRequest,
+    @Query() page?: number,
+    @Query() limit?: number,
+    @Query() status?: string
+  ): Promise<PaginatedResponseDto<ContributionDto>> {
+    // SAFETY: expressAuthentication guarantees req.user on @Security routes.
+    const user = req.user;
+    return this.contributionService.getUserContributions(user.userId, page, limit, status);
   }
 }

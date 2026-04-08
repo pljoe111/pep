@@ -4,16 +4,13 @@ import { Spinner } from './Spinner';
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface ButtonProps {
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
-  disabled?: boolean;
-  type?: 'button' | 'submit' | 'reset';
   fullWidth?: boolean;
-  onClick?: () => void;
-  className?: string;
+  icon?: React.ReactNode;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -42,6 +39,8 @@ export function Button({
   fullWidth = false,
   onClick,
   className = '',
+  icon,
+  ...props
 }: ButtonProps): React.ReactElement {
   const isDisabled = disabled || loading;
 
@@ -62,12 +61,15 @@ export function Button({
       ]
         .filter(Boolean)
         .join(' ')}
+      {...props}
     >
-      {loading && (
+      {loading ? (
         <Spinner
           size="sm"
           color={variant === 'secondary' || variant === 'ghost' ? 'primary' : 'white'}
         />
+      ) : (
+        icon
       )}
       {children}
     </button>

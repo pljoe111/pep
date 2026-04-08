@@ -43,6 +43,17 @@ export function useTransactions(filters: TxFilters) {
   });
 }
 
+/** My contributions */
+export function useMyContributions() {
+  return useQuery({
+    queryKey: ['wallet', 'contributions'],
+    queryFn: async () => {
+      const res = await walletApi.getMyContributions();
+      return res.data;
+    },
+  });
+}
+
 /** Submit a withdrawal */
 export function useWithdraw() {
   const qc = useQueryClient();
