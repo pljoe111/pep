@@ -5,7 +5,7 @@
  */
 import React, { useRef, useState } from 'react';
 import type { VendorSummaryDto, CreateVendorDto } from 'api-client';
-import { useVendorSearch, useSubmitVendor } from '../../api/hooks/useVendors';
+import { useVendorSearch, useSubmitVendor, useAllVendors } from '../../api/hooks/useVendors';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useToast } from '../../hooks/useToast';
 
@@ -173,7 +173,21 @@ export function VendorCombobox({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const debouncedQ = useDebounce(query, 300);
-  const { data: results = [], isFetching } = useVendorSearch(debouncedQ);
+  const { data: searchResults = [], isFetching } = useVendorSearch(debouncedQ);
+  const { data: allVendors = [] } = useAllVendors('approved');
+
+  const results: VendorSummaryDto[] = query.trim()
+    ? searchResults
+    : [...allVendors]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 10)
+        .map((v) => ({
+          id: v.id,
+          name: v.name,
+          website: v.website,
+          country: v.country,
+          status: v.status,
+        }));
 
   const handleSelect = (vendor: VendorSummaryDto): void => {
     onChange(vendor);
@@ -262,7 +276,7 @@ export function VendorCombobox({
                 </button>
               ))}
 
-            {!isFetching && results.length === 0 && query.trim().length > 0 && (
+            {!isFetching && query.trim().length > 0 && searchResults.length === 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -292,8 +306,8 @@ export function VendorCombobox({
               </button>
             )}
 
-            {query.trim().length === 0 && !isFetching && (
-              <div className="px-4 py-3 text-sm text-text-2">Start typing to search vendors…</div>
+            {query.trim().length === 0 && !isFetching && results.length === 0 && (
+              <div className="px-4 py-3 text-sm text-text-2">No vendors found.</div>
             )}
           </div>
         </>

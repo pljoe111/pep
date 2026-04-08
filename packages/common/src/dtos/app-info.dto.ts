@@ -14,4 +14,6 @@ export interface AppInfoDto {
   usdc_mint: string;
   usdt_mint: string;
   minimums: GlobalMinimumsConfig;
+  platform_fee_percent: number;
+  max_campaign_multiplier: number;
 }

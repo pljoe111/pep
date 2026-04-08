@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../../components/layout/AppShell';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -7,6 +7,7 @@ import { Step1Basics } from './steps/Step1Basics';
 import { Step2Samples } from './steps/Step2Samples';
 import { useDraftStorage } from './useDraftStorage';
 import { WizardFormState, DEFAULT_FORM_STATE } from './types';
+import { Step3Review } from './steps/Step3Review';
 import { Button } from '../../components/ui/Button';
 import { AlertCircle } from 'lucide-react';
 
@@ -19,28 +20,37 @@ export default function CreateCampaignPage() {
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [estimatedLabCost, setEstimatedLabCost] = useState(0);
 
+  const isInitialized = useRef(false);
+
   // On mount: check for existing draft
   useEffect(() => {
     const draft = loadDraft();
     if (draft && (draft.title || draft.samples.length > 0)) {
       setShowDraftBanner(true);
+    } else {
+      isInitialized.current = true;
     }
   }, []);
 
-  // Save on every state change
+  // Save on every state change, but skip the initial mount to avoid overwriting existing drafts
   useEffect(() => {
+    if (!isInitialized.current) return;
     saveDraft(formState);
   }, [formState]);
 
   const continueDraft = () => {
     const draft = loadDraft();
-    if (draft) setFormState(draft);
+    if (draft) {
+      setFormState(draft);
+    }
+    isInitialized.current = true;
     setShowDraftBanner(false);
   };
 
   const startFresh = () => {
     clearDraft();
     setFormState(DEFAULT_FORM_STATE);
+    isInitialized.current = true;
     setShowDraftBanner(false);
   };
 
@@ -94,17 +104,13 @@ export default function CreateCampaignPage() {
           {/* Step Content */}
           <div className="bg-surface rounded-2xl border border-border p-6 md:p-8 shadow-sm">
             {step === 1 && (
-              <Step1Basics
-                formState={formState}
-                estimatedLabCost={estimatedLabCost}
-                onUpdate={updateForm}
-                onNext={() => setStep(2)}
-              />
+              <Step1Basics formState={formState} onUpdate={updateForm} onNext={() => setStep(2)} />
             )}
 
             {step === 2 && (
               <Step2Samples
                 formState={formState}
+                estimatedLabCost={estimatedLabCost}
                 onUpdate={updateForm}
                 onEstimatedCostChange={setEstimatedLabCost}
                 onNext={() => setStep(3)}
@@ -113,12 +119,15 @@ export default function CreateCampaignPage() {
             )}
 
             {step === 3 && (
-              <div className="py-12 text-center space-y-4">
-                <p className="text-text-2 italic text-lg">Step 3: Review coming in S09</p>
-                <Button variant="secondary" onClick={() => setStep(2)}>
-                  ← Back to Samples
-                </Button>
-              </div>
+              <Step3Review
+                formState={formState}
+                estimatedLabCost={estimatedLabCost}
+                onBack={() => setStep(2)}
+                onSuccess={(campaignId) => {
+                  clearDraft();
+                  void navigate(`/campaigns/${campaignId}`);
+                }}
+              />
             )}
           </div>
 

@@ -13,6 +13,7 @@ export interface SampleForm {
   targetLabName: string;
   selectedTestIds: string[];
   claims: ClaimForm[];
+  cost: number;
 }
 
 export interface ClaimForm {

@@ -18,7 +18,6 @@ export function useVendorSearch(q: string, limit = 10) {
       const res = await vendorsApi.searchVendors(q, limit);
       return res.data;
     },
-    enabled: q.trim().length > 0,
     staleTime: 30 * 1000,
   });
 }

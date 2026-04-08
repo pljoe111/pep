@@ -77,7 +77,7 @@ export const SampleFormCard = ({
 
           <div className="space-y-4">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-text-3">
-              3. What are you claiming?
+              3. Expected Results
             </h4>
             <SectionC
               sample={sample}

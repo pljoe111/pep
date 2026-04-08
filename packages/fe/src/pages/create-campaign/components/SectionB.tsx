@@ -27,10 +27,21 @@ export const SectionB = ({ sample, onChange }: SectionBProps) => {
 
   const toggleTest = (testId: string) => {
     const current = sample.selectedTestIds;
-    const next = current.includes(testId)
-      ? current.filter((id) => id !== testId)
-      : [...current, testId];
-    onChange({ selectedTestIds: next });
+    const isRemoving = current.includes(testId);
+    const next = isRemoving ? current.filter((id) => id !== testId) : [...current, testId];
+
+    const patch: Partial<SampleForm> = { selectedTestIds: next };
+
+    if (isRemoving) {
+      // Remove claims associated with this test
+      patch.claims = sample.claims.filter((c) => c.testId !== testId);
+    }
+
+    // Update sample cost
+    const nextSelectedTests = tests.filter((t) => next.includes(t.test_id));
+    patch.cost = nextSelectedTests.reduce((sum, t) => sum + Number(t.price_usd), 0);
+
+    onChange(patch);
   };
 
   const selectedTests = tests.filter((t) => sample.selectedTestIds.includes(t.test_id));

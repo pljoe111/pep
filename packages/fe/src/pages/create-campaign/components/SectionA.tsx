@@ -17,9 +17,9 @@ export const SectionA = ({ sample, onChange }: SectionAProps) => {
     };
 
     if (!sample.label && sample.vendorName) {
-      patch.label = `${p.name} from ${sample.vendorName}`;
+      patch.label = `${p.name.toUpperCase()} ${sample.vendorName.toUpperCase()}`;
     } else if (!sample.label) {
-      patch.label = p.name;
+      patch.label = p.name.toUpperCase();
     }
 
     onChange(patch);
@@ -32,9 +32,9 @@ export const SectionA = ({ sample, onChange }: SectionAProps) => {
     };
 
     if (!sample.label && sample.peptideName) {
-      patch.label = `${sample.peptideName} from ${v.name}`;
+      patch.label = `${sample.peptideName.toUpperCase()} ${v.name.toUpperCase()}`;
     } else if (!sample.label) {
-      patch.label = `Sample from ${v.name}`;
+      patch.label = v.name.toUpperCase();
     }
 
     onChange(patch);
@@ -93,9 +93,9 @@ export const SectionA = ({ sample, onChange }: SectionAProps) => {
 
         <Input
           label="Sample Label"
-          placeholder="e.g. BPC-157 from Swisschems"
+          placeholder="e.g. TIRZEPATIDE THIS IS A LABEL"
           value={sample.label}
-          onChange={(e) => onChange({ label: e.target.value })}
+          onChange={(e) => onChange({ label: e.target.value.toUpperCase() })}
           required
         />
       </div>
