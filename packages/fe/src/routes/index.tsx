@@ -8,6 +8,7 @@ import { OfflinePage } from '../pages/OfflinePage';
 import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 import HomePage from '../pages/home/HomePage';
 import CampaignDetailPage from '../pages/campaign-detail/CampaignDetailPage';
+import CreateCampaignPage from '../pages/create-campaign/CreateCampaignPage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -77,7 +78,7 @@ function AppRoutes(): React.ReactElement {
         path="/create"
         element={
           <ProtectedRoute>
-            <div>Create Campaign (Rewriting...)</div>
+            <CreateCampaignPage />
           </ProtectedRoute>
         }
       />

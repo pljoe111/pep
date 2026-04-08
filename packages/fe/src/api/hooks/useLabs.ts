@@ -33,6 +33,19 @@ export function useLabDetail(id: string) {
   });
 }
 
+/** Lab tests for a specific lab */
+export function useLabTests(labId: string) {
+  return useQuery({
+    queryKey: queryKeys.labs.detail(labId),
+    queryFn: async () => {
+      const res = await labsApi.getLabById(labId);
+      return res.data.tests;
+    },
+    enabled: Boolean(labId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 /**
  * Test catalog.
  * @param activeOnly - pass `true` (default) for campaign creation; pass `false` in

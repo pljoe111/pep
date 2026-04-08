@@ -10,10 +10,17 @@ import { CampaignHero } from './components/CampaignHero';
 import { CreatorActions } from './components/CreatorActions';
 import { FundingCard } from '../../components/campaigns/FundingCard';
 import { OverviewTab } from './tabs/OverviewTab';
-import { ResultsTab } from './tabs/ResultsTab';
+import { SamplesTab } from './tabs/SamplesTab';
 import { UpdatesTab } from './tabs/UpdatesTab';
 import { BackersTab } from './tabs/BackersTab';
 import { ArrowLeft } from 'lucide-react';
+
+// Action Sheets
+import { ContributeSheet } from './sheets/ContributeSheet';
+import { LockCampaignSheet } from './sheets/LockCampaignSheet';
+import { ShipSamplesSheet } from './sheets/ShipSamplesSheet';
+import { UploadCOASheet } from './sheets/UploadCOASheet';
+import { PostUpdateSheet } from './sheets/PostUpdateSheet';
 
 type SheetType = 'contribute' | 'lock' | 'ship' | 'upload-coa' | 'post-update' | null;
 
@@ -22,8 +29,8 @@ export default function CampaignDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  const [, setOpenSheet] = useState<SheetType>(null);
-  const [, setSelectedSampleId] = useState<string | undefined>();
+  const [openSheet, setOpenSheet] = useState<SheetType>(null);
+  const [selectedSampleId, setSelectedSampleId] = useState<string | undefined>();
 
   const { data: campaign, isLoading, isError } = useCampaignDetail(id || '');
 
@@ -87,15 +94,12 @@ export default function CampaignDetailPage() {
       id: 'samples',
       label: 'Samples',
       content: (
-        <div className="py-12 text-center text-text-3 italic">
-          Samples tab content coming in S05
-        </div>
+        <SamplesTab
+          campaign={campaign}
+          isCreator={isCreator}
+          onReplaceCoaClick={(sampleId) => handleOpenSheet('upload-coa', sampleId)}
+        />
       ),
-    },
-    {
-      id: 'results',
-      label: 'Results',
-      content: <ResultsTab campaignId={campaign.id} />,
     },
     {
       id: 'updates',
@@ -157,6 +161,37 @@ export default function CampaignDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Action Sheets */}
+      <ContributeSheet
+        campaignId={campaign.id}
+        isOpen={openSheet === 'contribute'}
+        onClose={() => setOpenSheet(null)}
+      />
+      <LockCampaignSheet
+        campaign={campaign}
+        isOpen={openSheet === 'lock'}
+        onClose={() => setOpenSheet(null)}
+      />
+      <ShipSamplesSheet
+        campaign={campaign}
+        isOpen={openSheet === 'ship'}
+        onClose={() => setOpenSheet(null)}
+      />
+      <UploadCOASheet
+        campaign={campaign}
+        preSelectedSampleId={selectedSampleId}
+        isOpen={openSheet === 'upload-coa'}
+        onClose={() => {
+          setOpenSheet(null);
+          setSelectedSampleId(undefined);
+        }}
+      />
+      <PostUpdateSheet
+        campaignId={campaign.id}
+        isOpen={openSheet === 'post-update'}
+        onClose={() => setOpenSheet(null)}
+      />
     </div>
   );
 }
