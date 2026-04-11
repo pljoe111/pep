@@ -111,6 +111,21 @@ export function useVerificationCode() {
   });
 }
 
+/** Campaigns by a specific creator */
+export function useCreatorCampaigns(creatorId: string) {
+  return useQuery({
+    queryKey: queryKeys.campaigns.byCreator(creatorId),
+    queryFn: async () => {
+      const res = await campaignsApi.getAllCampaigns(undefined, undefined, 'newest', 1, 100);
+      return {
+        ...res.data,
+        data: res.data.data.filter((c) => c.creator.id === creatorId),
+      };
+    },
+    enabled: Boolean(creatorId),
+  });
+}
+
 /** Cost estimate */
 export function useCostEstimate(samplesJson: string, enabled: boolean) {
   return useQuery({

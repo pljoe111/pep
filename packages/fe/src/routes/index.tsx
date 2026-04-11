@@ -12,6 +12,7 @@ import CreateCampaignPage from '../pages/create-campaign/CreateCampaignPage';
 import MyCampaignsPage from '../pages/my-campaigns/MyCampaignsPage';
 import WalletPage from '../pages/wallet/WalletPage';
 import AccountPage from '../pages/account/AccountPage';
+import UserProfilePage from '../pages/users/UserProfilePage';
 
 /** Route guard: redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -111,7 +112,7 @@ function AppRoutes(): React.ReactElement {
       />
 
       {/* Public user profiles */}
-      <Route path="/users/:id" element={<div>User Profile (Rewriting...)</div>} />
+      <Route path="/users/:id" element={<UserProfilePage />} />
 
       {/* Admin-only routes */}
       <Route

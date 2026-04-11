@@ -6,6 +6,7 @@ interface SheetProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  side?: 'bottom' | 'top';
 }
 
 export function Sheet({
@@ -14,6 +15,7 @@ export function Sheet({
   title,
   children,
   className = '',
+  side = 'bottom',
 }: SheetProps): React.ReactElement | null {
   useEffect(() => {
     if (!isOpen) return;
@@ -35,7 +37,10 @@ export function Sheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
+      className={[
+        'fixed inset-0 z-50 flex justify-center md:items-center md:p-4',
+        side === 'bottom' ? 'items-end' : 'items-start',
+      ].join(' ')}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'sheet-title' : undefined}
@@ -51,19 +56,24 @@ export function Sheet({
         className={[
           'relative z-10 w-full bg-surface',
           'md:rounded-2xl md:max-w-lg md:shadow-xl',
-          'rounded-t-3xl shadow-2xl',
+          side === 'bottom' ? 'rounded-t-3xl' : 'rounded-b-3xl',
+          'shadow-2xl',
           'max-h-[92vh] md:max-h-[90vh] overflow-y-auto',
-          'animate-[slideUp_200ms_ease-out]',
+          side === 'bottom'
+            ? 'animate-[slideUp_200ms_ease-out]'
+            : 'animate-[slideDown_200ms_ease-out]',
           className,
         ].join(' ')}
         style={{
-          animation: 'slideUp 200ms ease-out',
+          animation: side === 'bottom' ? 'slideUp 200ms ease-out' : 'slideDown 200ms ease-out',
         }}
       >
         {/* Handle bar — mobile only */}
-        <div className="md:hidden flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-border" />
-        </div>
+        {side === 'bottom' && (
+          <div className="md:hidden flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 rounded-full bg-border" />
+          </div>
+        )}
         {title && (
           <div className="flex items-center justify-between px-5 pt-3 pb-4 border-b border-border">
             <h2 id="sheet-title" className="text-xl font-bold text-text">
@@ -85,7 +95,12 @@ export function Sheet({
             </button>
           </div>
         )}
-        <div className="p-5 pb-[env(safe-area-inset-bottom,20px)]">{children}</div>
+        <div className="p-5 pb-[calc(env(safe-area-inset-bottom,20px)+1.5rem)]">{children}</div>
+        {side === 'top' && (
+          <div className="md:hidden flex justify-center pt-1 pb-3">
+            <div className="w-10 h-1 rounded-full bg-border" />
+          </div>
+        )}
       </div>
     </div>
   );

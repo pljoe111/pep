@@ -20,12 +20,18 @@ export function CampaignCard({ campaign }: CampaignCardProps): React.ReactElemen
   const samples = campaign.sample_labels || [];
 
   return (
-    <Link to={`/campaigns/${campaign.id}`} className="block no-underline">
-      <Card className="flex flex-col gap-3 hover:border-primary transition-colors">
-        <div className="flex justify-between items-start gap-2">
+    <div className="block no-underline">
+      <Card className="flex flex-col gap-3 hover:border-primary transition-colors relative">
+        <Link to={`/campaigns/${campaign.id}`} className="absolute inset-0 z-0" />
+        <div className="flex justify-between items-start gap-2 relative z-10">
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-bold text-text truncate">{campaign.title}</h3>
-            <p className="text-sm text-text-2">by {campaign.creator.username}</p>
+            <Link
+              to={`/users/${campaign.creator.id}`}
+              className="text-sm text-text-2 hover:text-primary transition-colors"
+            >
+              by {campaign.creator.username}
+            </Link>
           </div>
           <CampaignStatusBadge
             status={campaign.status}
@@ -84,6 +90,6 @@ export function CampaignCard({ campaign }: CampaignCardProps): React.ReactElemen
           </div>
         )}
       </Card>
-    </Link>
+    </div>
   );
 }

@@ -97,7 +97,7 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="p-5 pb-8">{children}</div>
       </div>
     </div>,
     document.body

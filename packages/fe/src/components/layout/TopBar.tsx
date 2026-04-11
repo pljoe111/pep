@@ -22,18 +22,29 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <>
-              <button
-                onClick={() => setIsNotifOpen(true)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-xl text-text-2 transition-colors hover:bg-surface-a"
-                aria-label="Notifications"
-              >
-                <Bell size={20} />
-                {unreadCount > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-xl text-text-2 transition-colors hover:bg-surface-a"
+                  aria-label="Notifications"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Desktop Notification Center */}
+                <div className="hidden md:block">
+                  <NotificationCenter
+                    isOpen={isNotifOpen}
+                    onClose={() => setIsNotifOpen(false)}
+                    variant="desktop"
+                  />
+                </div>
+              </div>
 
               <button
                 onClick={() => void logout()}
@@ -54,7 +65,14 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      <NotificationCenter isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} />
+      {/* Mobile Notification Center */}
+      <div className="md:hidden">
+        <NotificationCenter
+          isOpen={isNotifOpen}
+          onClose={() => setIsNotifOpen(false)}
+          variant="mobile"
+        />
+      </div>
     </header>
   );
 };
