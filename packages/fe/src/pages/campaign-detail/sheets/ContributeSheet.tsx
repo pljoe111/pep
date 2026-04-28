@@ -96,6 +96,12 @@ export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheet
               </button>
             ))}
           </div>
+          {currency !== 'usdt' && (
+            <p className="text-xs text-text-3 leading-relaxed">
+              USDC and PYUSD are converted to USDT at the current market rate. The credited amount
+              may vary slightly based on on-chain liquidity.
+            </p>
+          )}
         </div>
 
         <div className="space-y-4">

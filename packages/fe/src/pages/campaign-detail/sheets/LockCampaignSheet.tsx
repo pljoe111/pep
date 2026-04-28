@@ -27,8 +27,13 @@ export const LockCampaignSheet = ({ campaign, isOpen, onClose }: LockCampaignShe
         toast.success('Campaign locked');
         onClose();
       },
-      onError: (error: any) => {
-        toast.error(error?.response?.data?.message || 'Failed to lock campaign');
+      onError: (err: unknown) => {
+        const msg =
+          typeof err === 'object' && err !== null && 'response' in err
+            ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+              'Failed to lock campaign')
+            : 'Failed to lock campaign';
+        toast.error(msg);
       },
     });
   };

@@ -28,8 +28,13 @@ export const ShipSamplesSheet = ({ campaign, isOpen, onClose }: ShipSamplesSheet
         toast.success('Shipment confirmed');
         onClose();
       },
-      onError: (error: any) => {
-        toast.error(error?.response?.data?.message || 'Failed to confirm shipment');
+      onError: (err: unknown) => {
+        const msg =
+          typeof err === 'object' && err !== null && 'response' in err
+            ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+              'Failed to confirm shipment')
+            : 'Failed to confirm shipment';
+        toast.error(msg);
       },
     });
   };

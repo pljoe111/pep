@@ -256,7 +256,7 @@ export function startDepositScannerWorker(): void {
             const creditDisplay = amount.toFixed(2);
             const message =
               currency !== 'usdt'
-                ? `${depositDisplay} ${currencyLabel} deposited and converted to ${creditDisplay} USDT (0.5% conversion fee applied).`
+                ? `${depositDisplay} ${currencyLabel} deposited and converted to ${creditDisplay} USDT at current market rate.`
                 : `${creditDisplay} USDT has been credited to your balance.`;
 
             await notif.send(

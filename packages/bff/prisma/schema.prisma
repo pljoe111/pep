@@ -127,6 +127,7 @@ model User {
   email                    String   @unique @db.VarChar(255)
   password_hash            String   @db.VarChar(255)
   username                 String?  @unique @db.VarChar(50)
+  timezone                 String?
   is_banned                Boolean  @default(false)
   email_verified           Boolean  @default(false)
   notification_preferences Json     @default("{}")

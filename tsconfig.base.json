@@ -12,7 +12,7 @@
     "sourceMap": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "noEmit": true
+    "noEmit": false
   },
   "exclude": ["node_modules", "dist", "build", "**/*.test.ts"]
 }

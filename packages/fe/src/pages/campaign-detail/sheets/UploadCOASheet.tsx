@@ -76,10 +76,15 @@ export const UploadCOASheet = ({
           toast.success('COA uploaded — pending admin review');
           setTimeout(onClose, 500);
         },
-        onError: (error: any) => {
+        onError: (err: unknown) => {
           clearInterval(interval);
           setUploadProgress(0);
-          toast.error(error?.response?.data?.message || 'Failed to upload COA');
+          const msg =
+            typeof err === 'object' && err !== null && 'response' in err
+              ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                'Failed to upload COA')
+              : 'Failed to upload COA';
+          toast.error(msg);
         },
       }
     );

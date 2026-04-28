@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     },
     {
       key: 'deposit_conversion_fee_bps',
-      value: 50,
+      value: 0,
       description:
         'Basis points charged on USDC/PyUSD deposits for currency conversion. 50 = 0.5%. Adjustable without code deploy.',
     },

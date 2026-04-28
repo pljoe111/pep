@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAppInfo } from '../../../api/hooks/useAppInfo';
 import { WizardFormState, SampleForm } from '../types';
 import { SampleFormCard } from '../components/SampleFormCard';
@@ -29,12 +29,31 @@ export const Step2Samples = ({
   const platformFeePercent = appInfo?.platform_fee_percent ?? 5;
   const maxMultiplier = appInfo?.max_campaign_multiplier ?? 3;
 
+  const addSample = useCallback(() => {
+    const newSample: SampleForm = {
+      id: crypto.randomUUID(),
+      peptideId: '',
+      peptideName: '',
+      vendorId: '',
+      vendorName: '',
+      purchaseDate: '',
+      physicalDescription: '',
+      label: '',
+      targetLabId: '',
+      targetLabName: '',
+      selectedTestIds: [],
+      claims: [],
+      cost: 0,
+    };
+    onUpdate({ samples: [...formState.samples, newSample] });
+  }, [formState.samples, onUpdate]);
+
   // Add initial sample if empty
   useEffect(() => {
     if (formState.samples.length === 0) {
       addSample();
     }
-  }, []);
+  }, [addSample, formState.samples.length]);
 
   // Compute estimated cost whenever samples or test catalog changes
   const totalCost = useMemo(() => {
@@ -52,25 +71,6 @@ export const Step2Samples = ({
       onUpdate({ amountRequested: (estimatedLabCost * 0.5).toFixed(2) });
     }
   }, [estimatedLabCost, formState.amountRequested, onUpdate]);
-
-  const addSample = () => {
-    const newSample: SampleForm = {
-      id: crypto.randomUUID(),
-      peptideId: '',
-      peptideName: '',
-      vendorId: '',
-      vendorName: '',
-      purchaseDate: '',
-      physicalDescription: '',
-      label: '',
-      targetLabId: '',
-      targetLabName: '',
-      selectedTestIds: [],
-      claims: [],
-      cost: 0,
-    };
-    onUpdate({ samples: [...formState.samples, newSample] });
-  };
 
   const removeSample = (id: string) => {
     onUpdate({ samples: formState.samples.filter((s) => s.id !== id) });

@@ -157,7 +157,8 @@ export const COAStateDisplay = ({
   if (status === 'rejected') {
     // Note: rejectionCount is not in the current DTO, but we'll use it if it exists or default to 1
     // Based on the plan, we should show escalation at 2/3
-    const rejectionCount = (coa as any).rejection_count || 1;
+    const rejectionCount =
+      ((coa as unknown as Record<string, unknown>).rejection_count as number | undefined) ?? 1;
 
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">

@@ -33,7 +33,7 @@ export const PostUpdateSheet = ({ campaignId, isOpen, onClose }: PostUpdateSheet
 
   const content = watch('content');
 
-  const onSubmit = (values: UpdateFormValues) => {
+  const onSubmit = (values: UpdateFormValues): void => {
     addUpdate(
       { content: values.content },
       {
@@ -42,8 +42,13 @@ export const PostUpdateSheet = ({ campaignId, isOpen, onClose }: PostUpdateSheet
           reset();
           onClose();
         },
-        onError: (error: any) => {
-          toast.error(error?.response?.data?.message || 'Failed to post update');
+        onError: (err: unknown) => {
+          const msg =
+            typeof err === 'object' && err !== null && 'response' in err
+              ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                'Failed to post update')
+              : 'Failed to post update';
+          toast.error(msg);
         },
       }
     );
@@ -51,7 +56,13 @@ export const PostUpdateSheet = ({ campaignId, isOpen, onClose }: PostUpdateSheet
 
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Post Update">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSubmit(onSubmit)(e);
+        }}
+        className="space-y-6 pt-2"
+      >
         <div className="space-y-2">
           <label className="text-xs font-medium text-text-3 uppercase tracking-wide">
             What would you like to share with your backers?

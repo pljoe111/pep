@@ -126,7 +126,9 @@ export function TestClaimTemplateRow({
       />
       <button
         type="button"
-        onClick={handleSave}
+        onClick={() => {
+          void handleSave();
+        }}
         disabled={saving || !label.trim()}
         className="text-primary text-xs font-medium min-h-[36px] px-2 disabled:opacity-50"
       >

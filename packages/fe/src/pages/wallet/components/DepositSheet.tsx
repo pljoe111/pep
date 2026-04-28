@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Copy, Check, AlertTriangle, Info } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { NetworkSolana, TokenPYUSD, TokenUSDC, TokenUSDT } from '@web3icons/react';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Button } from '../../../components/ui/Button';
 import { useDepositAddress } from '../../../api/hooks/useWallet';
-import { useAppInfo } from '../../../api/hooks/useAppInfo';
 import { Spinner } from '../../../components/ui/Spinner';
+import { DepositDisclosureOverlay } from '../../../components/ui/DepositDisclosureOverlay';
+import { useDepositDisclosure } from '../../../hooks/useDepositDisclosure';
+import { useTimezoneSync } from '../../../hooks/useTimezoneSync';
 
 interface DepositSheetProps {
   isOpen: boolean;
@@ -14,9 +17,13 @@ interface DepositSheetProps {
 
 export function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
   const { data, isLoading } = useDepositAddress();
-  const { data: appInfo } = useAppInfo();
   const [copied, setCopied] = useState(false);
   const address = data?.address ?? '';
+
+  const { shouldShow, doNotShowAgain, setDoNotShowAgain, accept } = useDepositDisclosure();
+
+  // Background timezone sync — runs once on mount, silently no-ops on error
+  useTimezoneSync();
 
   const handleCopy = () => {
     if (!address) return;
@@ -25,29 +32,59 @@ export function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Format conversion fee percentage for display (e.g. 50 bps → "0.5")
-  const feePercent =
-    appInfo?.deposit_conversion_fee_bps != null
-      ? (appInfo.deposit_conversion_fee_bps / 100).toFixed(1)
-      : '0.5';
-
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Deposit">
-      <div className="space-y-6">
-        <div className="text-center space-y-4">
-          <p className="text-sm text-text-2">Your deposit address (Solana):</p>
+      <div className="relative">
+        <div className="space-y-5">
+          {/* Accepted tokens strip — amber header style matching disclosure overlay */}
+          <div className="rounded-2xl overflow-hidden border border-amber-200">
+            {/* Amber header band */}
+            <div className="flex items-center justify-between px-4 py-3 bg-amber-400">
+              <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                Accepted tokens · Solana network only
+              </p>
+              <NetworkSolana size={20} variant="branded" className="flex-shrink-0" />
+            </div>
 
-          <div className="flex justify-center p-4 bg-white rounded-2xl border border-border">
-            {isLoading ? (
-              <div className="w-[200px] h-[200px] flex items-center justify-center">
-                <Spinner size="lg" />
-              </div>
-            ) : (
-              <QRCodeSVG value={address} size={200} />
-            )}
+            {/* Token row */}
+            <div className="flex items-center gap-5 px-4 py-3 bg-amber-50">
+              {(
+                [
+                  { Icon: TokenUSDC, label: 'USDC' },
+                  { Icon: TokenUSDT, label: 'USDT' },
+                  { Icon: TokenPYUSD, label: 'PYUSD' },
+                ] as const
+              ).map(({ Icon, label }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <Icon size={24} variant="branded" />
+                  <span className="text-sm font-semibold text-amber-900">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Danger note */}
+            <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
+              <p className="text-xs text-amber-800 leading-relaxed">
+                <strong className="text-danger">Do not send any other token or network.</strong>{' '}
+                Funds sent from unsupported chains or mints will be lost permanently.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2">
+          {/* QR + address */}
+          <div className="text-center space-y-4">
+            <p className="text-sm text-text-2">Your deposit address (Solana):</p>
+
+            <div className="flex justify-center p-4 bg-white rounded-2xl border border-border">
+              {isLoading ? (
+                <div className="w-[200px] h-[200px] flex items-center justify-center">
+                  <Spinner size="lg" />
+                </div>
+              ) : (
+                <QRCodeSVG value={address} size={200} />
+              )}
+            </div>
+
             <div className="flex items-center gap-2 px-3 py-2 bg-surface-a rounded-xl border border-border w-full">
               <code className="text-xs text-text-2 break-all flex-1 text-left">{address}</code>
               <Button
@@ -61,40 +98,34 @@ export function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
               </Button>
             </div>
           </div>
-        </div>
 
-        {/* Conversion fee disclosure */}
-        <div className="bg-[var(--color-surface-a)] border border-border rounded-xl p-4 flex gap-3">
-          <Info className="text-[var(--color-primary)] shrink-0 mt-0.5" size={18} />
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-text">Accepted currencies</p>
+          {/* Conversion note */}
+          <div className="bg-surface-a border border-border rounded-xl px-4 py-3 space-y-1">
+            <p className="text-xs font-semibold text-text">Conversion info</p>
             <p className="text-xs text-text-2 leading-relaxed">
-              Send <strong>USDT</strong>, <strong>USDC</strong>, or <strong>PYUSD</strong> on the
-              Solana network. USDT deposits are credited 1:1 with no fee. USDC and PYUSD deposits
-              are instantly converted to USDT — a <strong>{feePercent}% conversion fee</strong>{' '}
-              applies.
+              USDT is credited 1&nbsp;:&nbsp;1 with no fee. USDC and PYUSD are instantly swapped to
+              USDT via Jupiter — depositing $100 USDC may credit you ~$99.90–$99.95 USDT depending
+              on on-chain liquidity and the conversion fee.
             </p>
           </div>
+
+          <p className="text-xs text-text-3 text-center leading-relaxed">
+            Funds arrive within 2–3 minutes after the on-chain transaction is confirmed.
+          </p>
+
+          <Button variant="secondary" fullWidth size="lg" onClick={onClose}>
+            Close
+          </Button>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-          <AlertTriangle className="text-amber-600 shrink-0" size={20} />
-          <div className="space-y-1">
-            <p className="text-sm font-bold text-amber-900">Important</p>
-            <p className="text-xs text-amber-800 leading-relaxed">
-              Only send supported SPL tokens on the Solana network. Other tokens or networks will
-              result in permanent loss.
-            </p>
-          </div>
-        </div>
-
-        <p className="text-xs text-text-3 text-center leading-relaxed">
-          Funds arrive within 2–3 minutes after the on-chain transaction is confirmed.
-        </p>
-
-        <Button variant="secondary" fullWidth size="lg" onClick={onClose}>
-          Close
-        </Button>
+        {/* Disclosure overlay — rendered on top of content when shouldShow is true */}
+        {shouldShow && (
+          <DepositDisclosureOverlay
+            doNotShowAgain={doNotShowAgain}
+            onDoNotShowAgainChange={setDoNotShowAgain}
+            onAccept={accept}
+          />
+        )}
       </div>
     </Sheet>
   );

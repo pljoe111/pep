@@ -154,7 +154,14 @@ export function PeptideModal({
           <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" fullWidth loading={loading} onClick={handleSubmit}>
+          <Button
+            variant="primary"
+            fullWidth
+            loading={loading}
+            onClick={() => {
+              void handleSubmit();
+            }}
+          >
             {mode === 'create' ? 'Create' : 'Save'}
           </Button>
         </div>

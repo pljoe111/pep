@@ -6,7 +6,7 @@
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
   },
   "scripts": {
-    "dev": "tsoa spec-and-routes && ts-node-dev --inspect -- src/server.ts",
+    "dev": "tsoa spec-and-routes && ts-node-dev --transpile-only --inspect -- src/server.ts",
     "build": "pnpm exec prisma generate && tsoa spec-and-routes && tsc",
     "start": "node dist/server.js",
     "test": "vitest",

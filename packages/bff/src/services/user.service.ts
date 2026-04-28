@@ -28,26 +28,39 @@ export class UserService {
   }
 
   async updateUsername(userId: string, dto: UpdateUserDto, ipAddress?: string): Promise<UserDto> {
-    if (!dto.username) throw new ValidationError('username is required');
+    const updateData: { username?: string; timezone?: string } = {};
 
-    const existing = await this.prisma.user.findFirst({
-      where: { username: dto.username, NOT: { id: userId } },
-    });
-    if (existing !== null) throw new ConflictError('Username already in use');
+    if (dto.username !== undefined) {
+      const existing = await this.prisma.user.findFirst({
+        where: { username: dto.username, NOT: { id: userId } },
+      });
+      if (existing !== null) throw new ConflictError('Username already in use');
+      updateData.username = dto.username;
+    }
+
+    if (dto.timezone !== undefined) {
+      updateData.timezone = dto.timezone;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new ValidationError('At least one field (username, timezone) is required');
+    }
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { username: dto.username },
+      data: updateData,
     });
 
-    this.audit.log({
-      userId,
-      action: 'user.username_updated',
-      entityType: 'user',
-      entityId: userId,
-      changes: { username: dto.username },
-      ipAddress,
-    });
+    if (dto.username !== undefined) {
+      this.audit.log({
+        userId,
+        action: 'user.username_updated',
+        entityType: 'user',
+        entityId: userId,
+        changes: { username: dto.username },
+        ipAddress,
+      });
+    }
 
     return this.authService.buildUserDto(userId);
   }

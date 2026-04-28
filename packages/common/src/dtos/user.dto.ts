@@ -47,6 +47,10 @@ export class UpdateUserDto {
     message: 'username may only contain letters, numbers, and underscores',
   })
   username?: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
 }
 
 export class NotificationPreferenceChannelDto {

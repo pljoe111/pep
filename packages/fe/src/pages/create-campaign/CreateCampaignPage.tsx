@@ -30,13 +30,13 @@ export default function CreateCampaignPage() {
     } else {
       isInitialized.current = true;
     }
-  }, []);
+  }, [loadDraft]);
 
   // Save on every state change, but skip the initial mount to avoid overwriting existing drafts
   useEffect(() => {
     if (!isInitialized.current) return;
     saveDraft(formState);
-  }, [formState]);
+  }, [formState, saveDraft]);
 
   const continueDraft = () => {
     const draft = loadDraft();

@@ -197,7 +197,14 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
           <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" fullWidth loading={loading} onClick={handleCreate}>
+          <Button
+            variant="primary"
+            fullWidth
+            loading={loading}
+            onClick={() => {
+              void handleCreate();
+            }}
+          >
             Create
           </Button>
         </div>
