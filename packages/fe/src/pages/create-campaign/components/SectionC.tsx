@@ -15,6 +15,27 @@ interface SectionCProps {
   onChange: (patch: Partial<SampleForm>) => void;
 }
 
+/** Builds the auto-generated label from peptide, vendor and optional mass value.
+ *  Format: PEPTIDE [VALUEmg] [VENDOR]
+ */
+function buildAutoLabel(peptideName: string, vendorName: string, massValue: string): string {
+  const parts = [peptideName.toUpperCase()];
+  if (massValue.trim()) parts.push(`${massValue.trim().toUpperCase()}MG`);
+  if (vendorName.trim()) parts.push(vendorName.toUpperCase());
+  return parts.join(' ');
+}
+
+/** Returns true if the current label looks like it was auto-generated (not manually customised).
+ *  A label is considered auto if it starts with the peptide name and contains only
+ *  uppercase letters, digits, and spaces (all characters the auto-builder can produce).
+ */
+function isAutoLabel(label: string, peptideName: string): boolean {
+  const base = peptideName.toUpperCase();
+  if (!label.startsWith(base)) return false;
+  const withoutBase = label.slice(base.length).trim();
+  return /^[A-Z0-9 ]*$/.test(withoutBase);
+}
+
 export const SectionC = ({ sample, selectedTestIds, onChange }: SectionCProps) => {
   // Fetch templates for ALL selected tests
   const results = useQueries({
@@ -68,14 +89,41 @@ export const SectionC = ({ sample, selectedTestIds, onChange }: SectionCProps) =
       return c;
     });
 
-    if (changed) {
+    // Auto-sync label when a mass claim is first added and label is still auto-generated
+    if (changed && sample.peptideName && isAutoLabel(sample.label, sample.peptideName)) {
+      const massValue = newClaims.find((c) => c.type === 'mass')?.value ?? '';
+      onChange({
+        claims: newClaims,
+        label: buildAutoLabel(sample.peptideName, sample.vendorName, massValue),
+      });
+    } else if (changed) {
       onChange({ claims: newClaims });
     }
-  }, [allTemplates, selectedTestIds, sample.claims, sample.peptideName, onChange]);
+  }, [
+    allTemplates,
+    selectedTestIds,
+    sample.claims,
+    sample.peptideName,
+    sample.vendorName,
+    sample.label,
+    onChange,
+  ]);
 
   const updateClaim = (id: string, value: string) => {
+    const updatedClaim = sample.claims.find((c) => c.id === id);
     const next = sample.claims.map((c) => (c.id === id ? { ...c, value } : c));
-    onChange({ claims: next });
+    const patch: Partial<SampleForm> = { claims: next };
+
+    // Auto-sync label when mass claim value changes and label is still auto-generated
+    if (
+      updatedClaim?.type === 'mass' &&
+      sample.peptideName &&
+      isAutoLabel(sample.label, sample.peptideName)
+    ) {
+      patch.label = buildAutoLabel(sample.peptideName, sample.vendorName, value);
+    }
+
+    onChange(patch);
   };
 
   const removeClaim = (id: string) => {
