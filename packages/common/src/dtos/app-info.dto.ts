@@ -13,6 +13,9 @@ export interface AppInfoDto {
   network: string;
   usdc_mint: string;
   usdt_mint: string;
+  pyusd_mint: string;
+  /** Basis points charged on USDC/PyUSD deposits for currency conversion. 50 = 0.5%. */
+  deposit_conversion_fee_bps: number;
   minimums: GlobalMinimumsConfig;
   platform_fee_percent: number;
   max_campaign_multiplier: number;

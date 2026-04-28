@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '../../../components/ui/Input';
@@ -6,7 +6,7 @@ import { Button } from '../../../components/ui/Button';
 import { useToast } from '../../../hooks/useToast';
 
 export function ChangePasswordForm() {
-  const { success, error: toastError } = useToast();
+  const { error: toastError } = useToast();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -15,7 +15,6 @@ export function ChangePasswordForm() {
   const {
     register,
     handleSubmit,
-    reset,
     watch,
     formState: { errors },
   } = useForm({
@@ -28,14 +27,18 @@ export function ChangePasswordForm() {
 
   const newPassword = watch('newPassword');
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = (_data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => {
     setIsPending(true);
     try {
       // Password change is not yet implemented in the BFF controllers.
       // This is a placeholder for when the endpoint is added.
       throw new Error('Password change is currently unavailable.');
-    } catch (err: any) {
-      toastError(err.message || 'Failed to change password');
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
       setIsPending(false);
     }
@@ -48,7 +51,13 @@ export function ChangePasswordForm() {
       </div>
       <div className="border-b border-border mb-6" />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSubmit(onSubmit)(e);
+        }}
+        className="space-y-4"
+      >
         <div className="space-y-1">
           <label className="text-sm font-medium text-text-2">Current Password</label>
           <div className="relative">

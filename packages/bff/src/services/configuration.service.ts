@@ -54,6 +54,10 @@ export interface DefaultSweepWalletConfig {
   address: string;
 }
 
+export interface DepositConversionFeeBpsConfig {
+  value: number; // basis points, e.g. 50 = 0.50%
+}
+
 // ─── Cache entry ──────────────────────────────────────────────────────────────
 
 interface CacheEntry {

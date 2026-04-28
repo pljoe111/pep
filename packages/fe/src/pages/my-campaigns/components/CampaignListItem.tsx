@@ -1,7 +1,6 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil, Trash2, AlertTriangle } from 'lucide-react';
-import type { CampaignSummaryDto } from 'api-client';
+import type { CampaignListDto } from 'api-client';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
@@ -9,19 +8,16 @@ import { CampaignStatusBadge } from '../../../components/campaigns/CampaignStatu
 import { formatUSD } from '../../../lib/formatters';
 
 interface CampaignListItemProps {
-  campaign: CampaignSummaryDto;
+  campaign: CampaignListDto;
   onEdit: () => void;
   onDelete: () => void;
 }
 
 export function CampaignListItem({ campaign, onEdit, onDelete }: CampaignListItemProps) {
-  const progress = Math.min(
-    100,
-    Math.round((Number(campaign.current_funding) / Number(campaign.target_funding)) * 100)
-  );
+  const progress = Math.round(campaign.funding_progress_percent);
 
   const canEdit = campaign.status === 'created';
-  const canDelete = campaign.status === 'created' && Number(campaign.contribution_count) === 0;
+  const canDelete = campaign.status === 'created';
 
   return (
     <Card className="mb-3 p-4">
@@ -47,8 +43,7 @@ export function CampaignListItem({ campaign, onEdit, onDelete }: CampaignListIte
         <div className="flex justify-between items-end text-sm">
           <span className="font-bold text-primary">{progress}% funded</span>
           <span className="text-text-2">
-            {formatUSD(Number(campaign.current_funding))} of{' '}
-            {formatUSD(Number(campaign.target_funding))}
+            {formatUSD(campaign.current_funding_usd)} of {formatUSD(campaign.funding_threshold_usd)}
           </span>
         </div>
         <ProgressBar percent={progress} />

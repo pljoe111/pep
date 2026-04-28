@@ -1,4 +1,3 @@
-import React from 'react';
 import { LogOut } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -27,7 +26,9 @@ export default function AccountPage() {
             variant="ghost"
             fullWidth
             size="lg"
-            onClick={logout}
+            onClick={() => {
+              void logout();
+            }}
             className="text-danger hover:bg-red-50 border-danger/20"
             icon={<LogOut size={18} />}
           >

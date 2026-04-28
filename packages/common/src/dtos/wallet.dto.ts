@@ -2,7 +2,7 @@ import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
 
 // ─── String literal types mirroring Prisma enums ─────────────────────────────
 
-export type Currency = 'usdc' | 'usdt';
+export type Currency = 'usdc' | 'usdt' | 'pyusd';
 export type AccountType = 'user' | 'campaign' | 'master' | 'fee' | 'external';
 export type TransactionType =
   | 'deposit'

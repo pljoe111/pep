@@ -1,7 +1,12 @@
 /**
  * ConsolidationService — triggered by POST /admin/consolidate.
- * Swaps USDC → USDT via Jupiter v6 API if the master wallet's USDC balance
- * meets or exceeds env.CONSOLIDATION_THRESHOLD_USDC (default 100 display units).
+ * Safety-net only: primary currency normalization now happens at deposit ingress
+ * (deposit-scanner.worker.ts swaps immediately on receipt).
+ *
+ * This service sweeps any residual USDC or PyUSD that was left on the master
+ * wallet (e.g. from a failed swap at ingress that fell through on USDC fallback).
+ * Swaps via Jupiter v6 API when the balance meets or exceeds the configured threshold.
+ *
  * On any error: logs + sends operator alert. Never touches ledger balances.
  * Audit log: action = 'admin.consolidation_triggered'.
  */
@@ -32,47 +37,79 @@ export class ConsolidationService {
       entityId: adminUserId,
     });
 
-    // Check master wallet USDC balance (raw units from getTokenBalance)
+    // ── USDC safety-net sweep ──────────────────────────────────────────────────
     const usdcRaw = await this.solana.getTokenBalance(env.MASTER_WALLET_PUBLIC_KEY, 'usdc');
     const usdcDisplay = usdcRaw / 1_000_000;
+
+    let usdcTriggered = false;
+    let usdcMessage: string;
 
     if (usdcDisplay < env.CONSOLIDATION_THRESHOLD_USDC) {
       logger.info(
         { usdcDisplay, threshold: env.CONSOLIDATION_THRESHOLD_USDC },
-        'USDC balance below threshold — no consolidation needed'
+        'USDC balance below threshold — no USDC consolidation needed'
       );
-      return {
-        triggered: false,
-        message: `USDC balance (${usdcDisplay}) is below threshold (${env.CONSOLIDATION_THRESHOLD_USDC}). No swap performed.`,
-      };
+      usdcMessage = `USDC balance (${usdcDisplay}) is below threshold (${env.CONSOLIDATION_THRESHOLD_USDC}). No swap performed.`;
+    } else {
+      logger.info(
+        { usdcDisplay, threshold: env.CONSOLIDATION_THRESHOLD_USDC },
+        'USDC balance above threshold — initiating Jupiter swap'
+      );
+      try {
+        const { signature } = await this.solana.swapToUsdt(BigInt(usdcRaw), 'usdc');
+        logger.info({ signature, usdcRaw }, 'USDC consolidation swap confirmed');
+        usdcTriggered = true;
+        usdcMessage = `Swapped ${usdcDisplay} USDC → USDT. On-chain signature: ${signature}`;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error({ error: message, usdcDisplay }, 'USDC consolidation swap failed');
+        await this.email.sendOperatorAlert(
+          '[ALERT] USDC Consolidation Swap Failed',
+          `USDC→USDT Jupiter swap failed.\nUSCD balance: ${usdcDisplay}\nError: ${message}`
+        );
+        usdcMessage = `USDC consolidation failed: ${message}. Operator has been alerted.`;
+      }
     }
 
-    logger.info(
-      { usdcDisplay, threshold: env.CONSOLIDATION_THRESHOLD_USDC },
-      'USDC balance above threshold — initiating Jupiter swap'
-    );
+    // ── PyUSD safety-net sweep ─────────────────────────────────────────────────
+    const pyusdRaw = await this.solana.getTokenBalance(env.MASTER_WALLET_PUBLIC_KEY, 'pyusd');
+    const pyusdDisplay = pyusdRaw / 1_000_000;
 
-    try {
-      const signature = await this.solana.swapUsdcToUsdt(BigInt(usdcRaw));
-      logger.info({ signature, usdcRaw }, 'Consolidation swap confirmed');
-      return {
-        triggered: true,
-        message: `Swapped ${usdcDisplay} USDC → USDT. On-chain signature: ${signature}`,
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error({ error: message, usdcDisplay }, 'Consolidation swap failed');
+    let pyusdTriggered = false;
+    let pyusdMessage: string;
 
-      // Operator alert — do NOT throw, do NOT touch ledger balances
-      await this.email.sendOperatorAlert(
-        '[ALERT] Consolidation Swap Failed',
-        `USDC→USDT Jupiter swap failed.\nUSCD balance: ${usdcDisplay}\nError: ${message}`
+    if (pyusdDisplay < env.CONSOLIDATION_THRESHOLD_PYUSD) {
+      logger.info(
+        { pyusdDisplay, threshold: env.CONSOLIDATION_THRESHOLD_PYUSD },
+        'PyUSD balance below threshold — no PyUSD consolidation needed'
       );
-
-      return {
-        triggered: false,
-        message: `Consolidation failed: ${message}. Operator has been alerted.`,
-      };
+      pyusdMessage = `PyUSD balance (${pyusdDisplay}) is below threshold (${env.CONSOLIDATION_THRESHOLD_PYUSD}). No swap performed.`;
+    } else {
+      logger.info(
+        { pyusdDisplay, threshold: env.CONSOLIDATION_THRESHOLD_PYUSD },
+        'PyUSD balance above threshold — initiating Jupiter swap (permanent-delegate risk)'
+      );
+      try {
+        const { signature } = await this.solana.swapToUsdt(BigInt(pyusdRaw), 'pyusd');
+        logger.info({ signature, pyusdRaw }, 'PyUSD consolidation swap confirmed');
+        pyusdTriggered = true;
+        pyusdMessage = `Swapped ${pyusdDisplay} PyUSD → USDT. On-chain signature: ${signature}`;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error({ error: message, pyusdDisplay }, 'PyUSD consolidation swap failed');
+        await this.email.sendOperatorAlert(
+          '[ALERT] PyUSD Consolidation Swap Failed',
+          `PyUSD→USDT Jupiter swap failed.\nPyUSD balance: ${pyusdDisplay}\nError: ${message}`
+        );
+        pyusdMessage = `PyUSD consolidation failed: ${message}. Operator has been alerted.`;
+      }
     }
+
+    return {
+      triggered: usdcTriggered || pyusdTriggered,
+      message: [usdcMessage, pyusdMessage].join(' | '),
+      pyusd_triggered: pyusdTriggered,
+      pyusd_message: pyusdMessage,
+    };
   }
 }

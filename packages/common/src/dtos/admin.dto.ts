@@ -82,6 +82,8 @@ export interface FeeSweepResponseDto {
 export interface ConsolidationResponseDto {
   triggered: boolean;
   message: string;
+  pyusd_triggered: boolean;
+  pyusd_message: string;
 }
 
 export interface TreasuryDto {
@@ -89,6 +91,7 @@ export interface TreasuryDto {
     public_key: string;
     usdc_balance: number;
     usdt_balance: number;
+    pyusd_balance: number;
     total_balance: number;
     last_synced_at: string;
   };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUpdateUsername } from '../../../api/hooks/useUser';
 import { Avatar } from '../../../components/ui/Avatar';
@@ -23,8 +23,9 @@ export function ProfileSection() {
         onSuccess: () => {
           success('Username updated');
         },
-        onError: (err: any) => {
-          toastError(err.response?.data?.message || 'Failed to update username');
+        onError: (err: unknown) => {
+          const apiErr = err as { response?: { data?: { message?: string } } };
+          toastError(apiErr.response?.data?.message ?? 'Failed to update username');
         },
       }
     );

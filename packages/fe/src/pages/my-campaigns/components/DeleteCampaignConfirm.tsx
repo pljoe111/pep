@@ -1,33 +1,29 @@
-import React from 'react';
-import type { CampaignSummaryDto } from 'api-client';
+import type { CampaignListDto } from 'api-client';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { useDeleteCampaign } from '../../../api/hooks/useCampaigns';
 import { useToast } from '../../../hooks/useToast';
 
 interface DeleteCampaignConfirmProps {
-  campaign: CampaignSummaryDto | null;
+  campaign: CampaignListDto | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function DeleteCampaignConfirm({ campaign, isOpen, onClose }: DeleteCampaignConfirmProps) {
-  const { toast } = useToast();
+  const { success, error: toastError } = useToast();
   const deleteMutation = useDeleteCampaign();
 
   const handleDelete = () => {
     if (!campaign) return;
     deleteMutation.mutate(campaign.id, {
       onSuccess: () => {
-        toast({ title: 'Campaign deleted', variant: 'success' });
+        success('Campaign deleted');
         onClose();
       },
-      onError: (error: any) => {
-        toast({
-          title: 'Delete failed',
-          message: error.response?.data?.message || 'An error occurred',
-          variant: 'danger',
-        });
+      onError: (err: unknown) => {
+        const apiErr = err as { response?: { data?: { message?: string } } };
+        toastError(apiErr.response?.data?.message ?? 'An error occurred');
       },
     });
   };

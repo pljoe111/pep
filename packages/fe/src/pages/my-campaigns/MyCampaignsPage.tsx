@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../../components/layout/AppShell';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -26,7 +26,13 @@ export default function MyCampaignsPage() {
       <PageContainer>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-3xl font-bold text-text">My Campaigns</h1>
-          <Button variant="primary" size="md" onClick={() => navigate('/create')}>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              void navigate('/create');
+            }}
+          >
             + New
           </Button>
         </div>
@@ -48,7 +54,9 @@ export default function MyCampaignsPage() {
               statusFilter ? 'Try changing your filters.' : 'Start a new campaign to get funded.'
             }
             ctaLabel="Create your first campaign"
-            onCta={() => navigate('/create')}
+            onCta={() => {
+              void navigate('/create');
+            }}
           />
         ) : (
           <div className="space-y-1">

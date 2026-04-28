@@ -10,7 +10,7 @@ export class ContributeDto {
   @Min(0.000001)
   amount!: number;
 
-  @IsEnum(['usdc', 'usdt'] as const)
+  @IsEnum(['usdc', 'usdt', 'pyusd'] as const)
   currency!: Currency;
 }
 

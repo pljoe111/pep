@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Button } from '../../../components/ui/Button';
@@ -63,8 +63,9 @@ export function WithdrawSheet({ isOpen, onClose }: WithdrawSheetProps) {
           setAddress('');
           setAmount('');
         },
-        onError: (err: any) => {
-          toastError(err.response?.data?.message || 'Withdrawal failed');
+        onError: (err: unknown) => {
+          const apiErr = err as { response?: { data?: { message?: string } } };
+          toastError(apiErr.response?.data?.message ?? 'Withdrawal failed');
           setStep('input');
         },
       }

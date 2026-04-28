@@ -1,5 +1,5 @@
 // Badge utility functions — pure mappings, no React components
-import type { CampaignStatus } from 'api-client';
+import type { CampaignStatus, Currency } from 'api-client';
 
 export type BadgeVariant =
   | 'amber'
@@ -65,4 +65,24 @@ export function verificationStatusLabel(status: VerificationStatusType): string 
     rejected: 'Rejected',
   };
   return map[status];
+}
+
+/** Map Currency to a human-readable display label. */
+export function currencyLabel(currency: Currency): string {
+  const map: Record<Currency, string> = {
+    usdc: 'USDC',
+    usdt: 'USDT',
+    pyusd: 'PYUSD',
+  };
+  return map[currency] ?? currency.toUpperCase();
+}
+
+/** Map Currency to a Badge variant for use in transaction history. */
+export function currencyVariant(currency: Currency): BadgeVariant {
+  const map: Record<Currency, BadgeVariant> = {
+    usdc: 'blue',
+    usdt: 'teal',
+    pyusd: 'indigo',
+  };
+  return map[currency] ?? 'gray';
 }

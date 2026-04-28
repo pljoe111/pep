@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useMyContributions } from '../../../api/hooks/useWallet';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -8,8 +7,11 @@ import { formatUSD, formatDate } from '../../../lib/formatters';
 import type { ContributionDto } from 'api-client';
 
 export function ContributionList() {
-  const { data, isLoading } = useMyContributions();
-  const contributions = (data?.data as unknown as ContributionDto[]) || [];
+  const { data, isLoading } = useMyContributions() as {
+    data: { data: ContributionDto[] } | undefined;
+    isLoading: boolean;
+  };
+  const contributions: ContributionDto[] = data?.data ?? [];
 
   if (isLoading) {
     return (

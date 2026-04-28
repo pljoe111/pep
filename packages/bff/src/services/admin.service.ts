@@ -447,6 +447,10 @@ export class AdminService {
 
     const usdcBalance = Number(masterWallet.usdc_balance);
     const usdtBalance = Number(masterWallet.usdt_balance);
+    // pyusd_balance cast required until Prisma client is regenerated after the migration
+    const pyusdBalance = Number(
+      (masterWallet as unknown as { pyusd_balance: number }).pyusd_balance ?? 0
+    );
     const feeBalance = Number(feeAccount.balance);
 
     return {
@@ -454,7 +458,8 @@ export class AdminService {
         public_key: env.MASTER_WALLET_PUBLIC_KEY,
         usdc_balance: usdcBalance,
         usdt_balance: usdtBalance,
-        total_balance: usdcBalance + usdtBalance,
+        pyusd_balance: pyusdBalance,
+        total_balance: usdcBalance + usdtBalance + pyusdBalance,
         last_synced_at: masterWallet.updated_at.toISOString(),
       },
       fee_account: {

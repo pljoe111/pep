@@ -5,6 +5,13 @@
  * Coding rules §8.3: this key must NEVER be logged.
  *
  * Uses @solana/web3.js v1 and @solana/spl-token v0.4.
+ *
+ * Supported currencies:
+ *   usdc  — standard SPL (TOKEN_PROGRAM_ID)
+ *   usdt  — standard SPL (TOKEN_PROGRAM_ID)
+ *   pyusd — Token-2022   (TOKEN_2022_PROGRAM_ID)
+ *           PayPal permanent-delegate risk: never hold PyUSD overnight.
+ *           Swapped to USDT immediately on deposit ingress.
  */
 import { injectable } from 'tsyringe';
 import {
@@ -19,6 +26,8 @@ import {
   type VersionedTransactionResponse,
 } from '@solana/web3.js';
 import {
+  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddress,
   createTransferInstruction,
   getOrCreateAssociatedTokenAccount,
@@ -30,16 +39,25 @@ import { decryptString } from '../utils/crypto.util';
 
 const logger = pino({ name: 'SolanaService' });
 
-const USDC_DECIMALS = 6;
-const USDT_DECIMALS = 6;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type SupportedCurrency = 'usdc' | 'usdt' | 'pyusd';
+
+interface MintConfig {
+  pubkey: PublicKey;
+  decimals: number;
+  /** TOKEN_PROGRAM_ID for usdc/usdt, TOKEN_2022_PROGRAM_ID for pyusd */
+  programId: PublicKey;
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 @injectable()
 export class SolanaService {
   private readonly connection: Connection;
   // SECURITY: masterKeypair is loaded once at startup; the private key is never logged.
   private readonly masterKeypair: Keypair;
-  private readonly usdcMint: PublicKey;
-  private readonly usdtMint: PublicKey;
+  private readonly mintConfigs: Record<SupportedCurrency, MintConfig>;
 
   constructor() {
     this.connection = new Connection(env.SOLANA_RPC_URL, 'confirmed');
@@ -47,8 +65,24 @@ export class SolanaService {
     // Only accessed here and in withdrawal.worker.ts per coding rules §8.3.
     const masterSecretBytes = bs58.decode(env.MASTER_WALLET_PRIVATE_KEY);
     this.masterKeypair = Keypair.fromSecretKey(masterSecretBytes);
-    this.usdcMint = new PublicKey(env.USDC_MINT);
-    this.usdtMint = new PublicKey(env.USDT_MINT);
+
+    this.mintConfigs = {
+      usdc: {
+        pubkey: new PublicKey(env.USDC_MINT),
+        decimals: 6,
+        programId: TOKEN_PROGRAM_ID,
+      },
+      usdt: {
+        pubkey: new PublicKey(env.USDT_MINT),
+        decimals: 6,
+        programId: TOKEN_PROGRAM_ID,
+      },
+      pyusd: {
+        pubkey: new PublicKey(env.PYUSD_MINT),
+        decimals: 6,
+        programId: TOKEN_2022_PROGRAM_ID,
+      },
+    };
   }
 
   /** Fetch recent confirmed signatures for a given address. */
@@ -111,32 +145,41 @@ export class SolanaService {
   /**
    * Sweep SPL tokens from a deposit address to the master wallet.
    * Deposit keypair signs the transfer; master wallet pays SOL fees.
+   * Threads the correct TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID per mint.
    * Returns the transaction signature on success.
    */
   async sweepDeposit(
     encryptedPrivateKey: string,
     amount: bigint,
-    mint: 'usdc' | 'usdt'
+    mint: SupportedCurrency
   ): Promise<string> {
-    const mintPubkey = mint === 'usdc' ? this.usdcMint : this.usdtMint;
+    const { pubkey: mintPubkey, programId } = this.mintConfigs[mint];
 
     // Decrypt deposit private key (never logged)
     const depositPrivateKeyHex = decryptString(encryptedPrivateKey);
     const depositKeypair = Keypair.fromSecretKey(Buffer.from(depositPrivateKeyHex, 'hex'));
 
-    // Get or create token accounts
+    // Get or create token accounts — pass programId for Token-2022 support
     const sourceATA = await getOrCreateAssociatedTokenAccount(
       this.connection,
       this.masterKeypair, // fee payer for account creation
       mintPubkey,
-      depositKeypair.publicKey
+      depositKeypair.publicKey,
+      false,
+      'confirmed',
+      undefined,
+      programId
     );
 
     const destATA = await getOrCreateAssociatedTokenAccount(
       this.connection,
       this.masterKeypair,
       mintPubkey,
-      this.masterKeypair.publicKey
+      this.masterKeypair.publicKey,
+      false,
+      'confirmed',
+      undefined,
+      programId
     );
 
     // Build transfer instruction
@@ -144,7 +187,9 @@ export class SolanaService {
       sourceATA.address,
       destATA.address,
       depositKeypair.publicKey,
-      amount
+      amount,
+      [],
+      programId
     );
 
     const tx = new Transaction().add(transferIx);
@@ -169,29 +214,41 @@ export class SolanaService {
   /**
    * Execute an SPL withdrawal from the master wallet to an external address.
    * Returns the transaction signature on success.
+   * Withdrawals are always USDT — mint param kept for forward compatibility.
    */
   async executeWithdrawal(
     destinationAddress: string,
     amount: bigint,
-    mint: 'usdc' | 'usdt'
+    mint: SupportedCurrency
   ): Promise<string> {
-    const mintPubkey = mint === 'usdc' ? this.usdcMint : this.usdtMint;
+    const { pubkey: mintPubkey, programId } = this.mintConfigs[mint];
     const destPubkey = new PublicKey(destinationAddress);
 
-    const sourceATA = await getAssociatedTokenAddress(mintPubkey, this.masterKeypair.publicKey);
+    const sourceATA = await getAssociatedTokenAddress(
+      mintPubkey,
+      this.masterKeypair.publicKey,
+      false,
+      programId
+    );
 
     const destATA = await getOrCreateAssociatedTokenAccount(
       this.connection,
       this.masterKeypair,
       mintPubkey,
-      destPubkey
+      destPubkey,
+      false,
+      'confirmed',
+      undefined,
+      programId
     );
 
     const transferIx = createTransferInstruction(
       sourceATA,
       destATA.address,
       this.masterKeypair.publicKey,
-      amount
+      amount,
+      [],
+      programId
     );
 
     const tx = new Transaction().add(transferIx);
@@ -215,17 +272,17 @@ export class SolanaService {
   }
 
   /**
-   * Get SPL token balance for an address.
-   * Used by the reconciliation job.
+   * Get SPL token balance for an address (raw units, not display units).
+   * Used by the reconciliation job and consolidation service.
+   * Returns raw units (multiply by 10^decimals already done via uiAmount re-scaling).
    */
-  async getTokenBalance(ownerAddress: string, mint: 'usdc' | 'usdt'): Promise<number> {
-    const mintPubkey = mint === 'usdc' ? this.usdcMint : this.usdtMint;
+  async getTokenBalance(ownerAddress: string, mint: SupportedCurrency): Promise<number> {
+    const { pubkey: mintPubkey, decimals, programId } = this.mintConfigs[mint];
     const ownerPubkey = new PublicKey(ownerAddress);
 
     try {
-      const ata = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
+      const ata = await getAssociatedTokenAddress(mintPubkey, ownerPubkey, false, programId);
       const balance = await this.connection.getTokenAccountBalance(ata);
-      const decimals = mint === 'usdc' ? USDC_DECIMALS : USDT_DECIMALS;
       return (balance.value.uiAmount ?? 0) * Math.pow(10, decimals);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -241,23 +298,39 @@ export class SolanaService {
   }
 
   /**
-   * Swap USDC → USDT on the master wallet via Jupiter v6 API.
-   * Used by ConsolidationService. On-chain signature returned on success.
+   * Swap any supported non-USDT currency → USDT on the master wallet via Jupiter v6 API.
+   *
+   * Slippage tolerance:
+   *   usdc  →  50 bps (0.5%) — deep, liquid pool
+   *   pyusd → 100 bps (1.0%) — thinner pool; PayPal permanent-delegate clawback risk
+   *
+   * Returns usdtReceived (actual raw USDT from quoteData.outAmount) and signature.
+   * The caller is responsible for applying the platform conversion fee on top.
+   * This method does NOT touch the ledger — pure on-chain operation.
+   *
    * Throws on any API or transaction failure.
    */
-  async swapUsdcToUsdt(amountRaw: bigint): Promise<string> {
+  async swapToUsdt(
+    amountRaw: bigint,
+    fromCurrency: Exclude<SupportedCurrency, 'usdt'>
+  ): Promise<{ usdtReceived: bigint; signature: string }> {
+    const { pubkey: inputMint } = this.mintConfigs[fromCurrency];
+    const slippageBps = fromCurrency === 'pyusd' ? '100' : '50';
+
     const quoteParams = new URLSearchParams({
-      inputMint: env.USDC_MINT,
+      inputMint: inputMint.toBase58(),
       outputMint: env.USDT_MINT,
       amount: amountRaw.toString(),
-      slippageBps: '50',
+      slippageBps,
     });
 
     const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?${quoteParams.toString()}`);
     if (!quoteRes.ok) {
-      throw new Error(`Jupiter quote request failed: ${quoteRes.status} ${quoteRes.statusText}`);
+      throw new Error(`Jupiter quote failed: ${quoteRes.status} ${quoteRes.statusText}`);
     }
-    const quoteData: unknown = await quoteRes.json();
+
+    const quoteData = (await quoteRes.json()) as { outAmount: string; [key: string]: unknown };
+    const usdtReceived = BigInt(quoteData.outAmount);
 
     const swapRes = await fetch('https://quote-api.jup.ag/v6/swap', {
       method: 'POST',
@@ -269,22 +342,28 @@ export class SolanaService {
       }),
     });
     if (!swapRes.ok) {
-      throw new Error(
-        `Jupiter swap transaction request failed: ${swapRes.status} ${swapRes.statusText}`
-      );
+      throw new Error(`Jupiter swap failed: ${swapRes.status} ${swapRes.statusText}`);
     }
 
     const swapData = (await swapRes.json()) as { swapTransaction: string };
-    const transactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
-    const transaction = VersionedTransaction.deserialize(transactionBuf);
-    transaction.sign([this.masterKeypair]);
+    const txBuf = Buffer.from(swapData.swapTransaction, 'base64');
+    const tx = VersionedTransaction.deserialize(txBuf);
+    tx.sign([this.masterKeypair]);
 
-    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+    const signature = await this.connection.sendRawTransaction(tx.serialize(), {
       skipPreflight: false,
     });
     await this.connection.confirmTransaction(signature, 'confirmed');
 
-    logger.info({ amountRaw: amountRaw.toString(), signature }, 'USDC→USDT Jupiter swap confirmed');
-    return signature;
+    logger.info(
+      {
+        fromCurrency,
+        amountRaw: amountRaw.toString(),
+        usdtReceived: usdtReceived.toString(),
+        signature,
+      },
+      'Deposit swap to USDT confirmed'
+    );
+    return { usdtReceived, signature };
   }
 }

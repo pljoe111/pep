@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useResendVerificationEmail } from '../../../api/hooks/useUser';
@@ -32,11 +32,12 @@ export function EmailVerificationSection() {
         success('Verification email sent');
         setCooldown(60);
       },
-      onError: (err: any) => {
-        if (err.response?.status === 429) {
+      onError: (err: unknown) => {
+        const apiErr = err as { response?: { status?: number; data?: { message?: string } } };
+        if (apiErr.response?.status === 429) {
           toastError('Please wait before requesting another email.');
         } else {
-          toastError(err.response?.data?.message || 'Failed to resend email');
+          toastError(apiErr.response?.data?.message ?? 'Failed to resend email');
         }
       },
     });

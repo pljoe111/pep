@@ -98,6 +98,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters!!';
   process.env.USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   process.env.USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  process.env.PYUSD_MINT = 'CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM'; // devnet PyUSD
   process.env.ENCRYPTION_KEY = 'a'.repeat(64);
   process.env.SOLANA_RPC_URL = 'http://localhost:8899';
   process.env.SOLANA_NETWORK = 'testnet';
@@ -240,7 +241,109 @@ describe('SolanaService §6 — executeWithdrawal with 1n raw unit', () => {
       expect.anything(), // sourceATA address
       expect.anything(), // destATA address
       expect.anything(), // authority (master wallet public key)
-      1n // amount — must be exactly bigint 1, not Number(1)
+      1n, // amount — must be exactly bigint 1, not Number(1)
+      expect.anything(), // multi-signers []
+      expect.anything() // programId
     );
+  });
+});
+
+// ─── §6: swapToUsdt — USDC happy path ─────────────────────────────────────────
+
+// Mock-level fetch stub — declared at module scope for the swap tests
+const mockFetch = vi.fn();
+
+vi.stubGlobal('fetch', mockFetch);
+
+describe('SolanaService §6 — swapToUsdt: USDC → USDT success', () => {
+  it('returns usdtReceived equal to quoteData.outAmount and a valid signature', async () => {
+    const fakeOutAmount = '99500000'; // 99.5 USDT raw units
+    const fakeSwapTx = Buffer.from('fake-versioned-tx').toString('base64');
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ outAmount: fakeOutAmount, otherField: 'ignored' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ swapTransaction: fakeSwapTx }),
+      });
+
+    // VersionedTransaction.deserialize must be stubbed — the tx buf is not a real Solana tx
+    const web3Actual: typeof import('@solana/web3.js') = await vi.importActual('@solana/web3.js');
+    const mockVersionedTx = {
+      sign: vi.fn(),
+      serialize: vi.fn().mockReturnValue(Buffer.from('serialized-swap-tx')),
+    };
+    vi.spyOn(web3Actual.VersionedTransaction, 'deserialize').mockReturnValue(
+      mockVersionedTx as unknown as InstanceType<typeof web3Actual.VersionedTransaction>
+    );
+
+    const result = await service.swapToUsdt(100_000_000n, 'usdc');
+
+    expect(result.usdtReceived).toBe(BigInt(fakeOutAmount));
+    expect(result.signature).toBe(TEST_SIGNATURE);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    // First call: Jupiter quote — must include inputMint=USDC and slippageBps=50
+    const quoteUrl = (mockFetch.mock.calls[0] as [string])[0];
+    expect(quoteUrl).toContain('slippageBps=50');
+    expect(quoteUrl).toContain('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'); // USDC mint
+  });
+});
+
+describe('SolanaService §6 — swapToUsdt: PyUSD → USDT uses 100 bps slippage', () => {
+  it('sends slippageBps=100 for pyusd and TOKEN_2022_PROGRAM_ID for ATA derivation', async () => {
+    const fakeOutAmount = '99000000';
+    const fakeSwapTx = Buffer.from('fake-versioned-tx-pyusd').toString('base64');
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ outAmount: fakeOutAmount }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ swapTransaction: fakeSwapTx }),
+      });
+
+    const web3Actual: typeof import('@solana/web3.js') = await vi.importActual('@solana/web3.js');
+    const mockVersionedTx = {
+      sign: vi.fn(),
+      serialize: vi.fn().mockReturnValue(Buffer.from('serialized-swap-tx-pyusd')),
+    };
+    vi.spyOn(web3Actual.VersionedTransaction, 'deserialize').mockReturnValue(
+      mockVersionedTx as unknown as InstanceType<typeof web3Actual.VersionedTransaction>
+    );
+
+    const result = await service.swapToUsdt(100_000_000n, 'pyusd');
+
+    expect(result.usdtReceived).toBe(BigInt(fakeOutAmount));
+    expect(result.signature).toBe(TEST_SIGNATURE);
+
+    const quoteUrl = (mockFetch.mock.calls[0] as [string])[0];
+    expect(quoteUrl).toContain('slippageBps=100');
+  });
+});
+
+describe('SolanaService §6 — swapToUsdt: Jupiter quote failure throws', () => {
+  it('throws when the Jupiter quote API returns a non-ok response', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 429, statusText: 'Too Many Requests' });
+
+    await expect(service.swapToUsdt(100_000_000n, 'usdc')).rejects.toThrow('Jupiter quote failed');
+  });
+});
+
+describe('SolanaService §6 — swapToUsdt: Jupiter swap failure throws', () => {
+  it('throws when the Jupiter swap API returns a non-ok response', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ outAmount: '99500000' }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 500, statusText: 'Internal Server Error' });
+
+    await expect(service.swapToUsdt(100_000_000n, 'usdc')).rejects.toThrow('Jupiter swap failed');
   });
 });

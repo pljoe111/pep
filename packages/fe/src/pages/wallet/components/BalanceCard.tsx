@@ -1,4 +1,3 @@
-import React from 'react';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -12,7 +11,7 @@ interface BalanceCardProps {
 
 export function BalanceCard({ onDepositClick, onWithdrawClick }: BalanceCardProps) {
   const { data, isLoading } = useWalletBalance();
-  const balance = data?.balance ?? '0';
+  const balance = data?.balance ?? 0;
 
   return (
     <Card className="mb-6 p-6">
@@ -25,7 +24,7 @@ export function BalanceCard({ onDepositClick, onWithdrawClick }: BalanceCardProp
           <div className="h-10 w-40 rounded-xl bg-border animate-pulse" />
         ) : (
           <span className="text-4xl font-extrabold text-text">
-            {formatUSD(parseFloat(balance))}
+            {formatUSD(typeof balance === 'string' ? parseFloat(balance) : balance)}
           </span>
         )}
 

@@ -23,7 +23,7 @@ const mockSolana = {
   getTokenBalance: vi.fn(),
   getTransaction: vi.fn(),
   getSolBalance: vi.fn(),
-  swapUsdcToUsdt: vi.fn(),
+  swapToUsdt: vi.fn(),
 };
 
 const mockEmail = {
@@ -65,6 +65,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters!!';
   process.env.USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   process.env.USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  process.env.PYUSD_MINT = 'CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM';
   process.env.MASTER_WALLET_PUBLIC_KEY = '11111111111111111111111111111111';
   process.env.MASTER_WALLET_PRIVATE_KEY =
     '5NemXetH19TAcuBd4ABz3URRDmxRPNrDDXFfgvzPT6KZkxGNv6kD3ZKuvjpgBN8GXbVCF8TkU9tMZPU6LEKF5qes';
@@ -104,7 +105,14 @@ afterEach(async () => {
   // Reset fee account back to zero so tests are independent
   await prisma.feeAccount.updateMany({ data: { balance: 0 } });
   // Reset master wallet snapshot back to zero so tests are independent
-  await prisma.masterWallet.updateMany({ data: { usdc_balance: 0, usdt_balance: 0 } });
+  // pyusd_balance cast until Prisma client type is fully propagated in the test runner
+  await prisma.masterWallet.updateMany({
+    data: {
+      usdc_balance: 0,
+      usdt_balance: 0,
+      pyusd_balance: 0,
+    } as Parameters<typeof prisma.masterWallet.updateMany>[0]['data'],
+  });
 
   vi.clearAllMocks();
   mockEmail.sendOperatorAlert.mockResolvedValue(undefined);
@@ -174,12 +182,16 @@ async function setFeeBalance(balance: number): Promise<void> {
 }
 
 /**
- * Sets mock USDC and USDT on-chain balances.
- * Internal total should equal usdcDisplay + usdtDisplay for a balanced state.
+ * Sets mock USDC, USDT and PyUSD on-chain balances.
+ * Internal total should equal usdcDisplay + usdtDisplay + pyusdDisplay for a balanced state.
  */
-function setOnchainBalance(usdcDisplay: number, usdtDisplay: number): void {
-  mockSolana.getTokenBalance.mockImplementation((_addr: string, currency: 'usdc' | 'usdt') =>
-    Promise.resolve(currency === 'usdc' ? usdcDisplay * 1_000_000 : usdtDisplay * 1_000_000)
+function setOnchainBalance(usdcDisplay: number, usdtDisplay: number, pyusdDisplay = 0): void {
+  mockSolana.getTokenBalance.mockImplementation(
+    (_addr: string, currency: 'usdc' | 'usdt' | 'pyusd') => {
+      if (currency === 'usdc') return Promise.resolve(usdcDisplay * 1_000_000);
+      if (currency === 'usdt') return Promise.resolve(usdtDisplay * 1_000_000);
+      return Promise.resolve(pyusdDisplay * 1_000_000);
+    }
   );
 }
 
@@ -287,5 +299,58 @@ describe('ReconciliationWorker §5.5 — Zero balances everywhere', () => {
     await reconcileTick!();
 
     expect(mockEmail.sendOperatorAlert).not.toHaveBeenCalled();
+  });
+});
+
+// ─── §5.6 — 3-currency on-chain sum: USDC + USDT + PyUSD ─────────────────────
+describe('ReconciliationWorker §5.6 — Three-currency on-chain balance (USDC + USDT + PyUSD)', () => {
+  it('counts pyusd in the on-chain total and does not alert when all three sum correctly', async () => {
+    // Internal: 300 ledger
+    await seedLedgerAccount(300);
+    await setFeeBalance(0);
+
+    // On-chain: 100 USDC + 150 USDT + 50 PyUSD = 300 → balanced
+    setOnchainBalance(100, 150, 50);
+
+    await reconcileTick!();
+
+    expect(mockEmail.sendOperatorAlert).not.toHaveBeenCalled();
+  });
+
+  it('alerts when PyUSD residual causes on-chain total to diverge from ledger total', async () => {
+    // Internal: 200
+    await seedLedgerAccount(200);
+    await setFeeBalance(0);
+
+    // On-chain: 100 USDC + 100 USDT + 10 PyUSD = 210 → delta = 10 > threshold
+    setOnchainBalance(100, 100, 10);
+
+    await reconcileTick!();
+
+    expect(mockEmail.sendOperatorAlert).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── §5.7 — PyUSD balance written to MasterWallet snapshot ────────────────────
+describe('ReconciliationWorker §5.7 — PyUSD balance persisted to MasterWallet snapshot', () => {
+  it('writes pyusd_balance to the MasterWallet row after reconciliation pass', async () => {
+    await seedLedgerAccount(200);
+    await setFeeBalance(0);
+
+    // On-chain: 100 USDC + 75 USDT + 25 PyUSD = 200 → balanced
+    setOnchainBalance(100, 75, 25);
+
+    await reconcileTick!();
+
+    expect(mockEmail.sendOperatorAlert).not.toHaveBeenCalled();
+
+    const mw = await prisma.masterWallet.findFirst();
+    expect(mw?.usdc_balance.toString()).toBe('100');
+    expect(mw?.usdt_balance.toString()).toBe('75');
+    // pyusd_balance is written via cast — verify it's a numeric field that was set
+    expect(Number((mw as unknown as { pyusd_balance: unknown })?.pyusd_balance ?? 0)).toBeCloseTo(
+      25,
+      4
+    );
   });
 });

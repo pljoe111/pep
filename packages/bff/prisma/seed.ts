@@ -89,6 +89,12 @@ async function main(): Promise<void> {
       value: { address: '' },
       description: 'Default Solana wallet address for fee sweeps.',
     },
+    {
+      key: 'deposit_conversion_fee_bps',
+      value: 50,
+      description:
+        'Basis points charged on USDC/PyUSD deposits for currency conversion. 50 = 0.5%. Adjustable without code deploy.',
+    },
   ];
 
   for (const row of rows) {

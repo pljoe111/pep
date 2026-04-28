@@ -37,12 +37,13 @@ export function startReconciliationWorker(): void {
     const feeTotal = feeAccount ? Number(feeAccount.balance) : 0;
     const internalTotal = ledgerTotal + escrowTotal + feeTotal;
 
-    // On-chain total = master wallet USDC balance + master wallet USDT balance
-    const [usdcOnchain, usdtOnchain] = await Promise.all([
+    // On-chain total = master wallet USDC + USDT + PyUSD balances
+    const [usdcOnchain, usdtOnchain, pyusdOnchain] = await Promise.all([
       solana.getTokenBalance(env.MASTER_WALLET_PUBLIC_KEY, 'usdc'),
       solana.getTokenBalance(env.MASTER_WALLET_PUBLIC_KEY, 'usdt'),
+      solana.getTokenBalance(env.MASTER_WALLET_PUBLIC_KEY, 'pyusd'),
     ]);
-    const onchainTotal = (usdcOnchain + usdtOnchain) / 1_000_000; // convert raw → display
+    const onchainTotal = (usdcOnchain + usdtOnchain + pyusdOnchain) / 1_000_000; // convert raw → display
 
     const delta = Math.abs(internalTotal - onchainTotal);
     const threshold = 0.000001; // 1 micro unit tolerance
@@ -51,9 +52,10 @@ export function startReconciliationWorker(): void {
       const message = [
         'RECONCILIATION DISCREPANCY DETECTED',
         `Internal total: ${internalTotal}`,
-        `On-chain total (USDC + USDT): ${onchainTotal}`,
+        `On-chain total (USDC + USDT + PyUSD): ${onchainTotal}`,
         `  USDC on-chain: ${usdcOnchain / 1_000_000}`,
         `  USDT on-chain: ${usdtOnchain / 1_000_000}`,
+        `  PyUSD on-chain: ${pyusdOnchain / 1_000_000}`,
         `Delta: ${delta}`,
         `Ledger accounts: ${ledgerTotal}`,
         `Campaign escrow: ${escrowTotal}`,
@@ -70,13 +72,19 @@ export function startReconciliationWorker(): void {
     // outcome. This row is a read-only cache — it does not participate in the ledger formula.
     const usdcDisplay = usdcOnchain / 1_000_000;
     const usdtDisplay = usdtOnchain / 1_000_000;
+    const pyusdDisplay = pyusdOnchain / 1_000_000;
     const masterWallet = await prisma.masterWallet.findFirst();
     if (masterWallet !== null) {
+      // pyusd_balance cast required until Prisma client is regenerated after the migration
       await prisma.masterWallet.update({
         where: { id: masterWallet.id },
-        data: { usdc_balance: usdcDisplay, usdt_balance: usdtDisplay },
+        data: {
+          usdc_balance: usdcDisplay,
+          usdt_balance: usdtDisplay,
+          pyusd_balance: pyusdDisplay,
+        } as Parameters<typeof prisma.masterWallet.update>[0]['data'],
       });
-      logger.info({ usdcDisplay, usdtDisplay }, 'MasterWallet snapshot updated');
+      logger.info({ usdcDisplay, usdtDisplay, pyusdDisplay }, 'MasterWallet snapshot updated');
     } else {
       logger.error('MasterWallet singleton row missing — run seed');
     }

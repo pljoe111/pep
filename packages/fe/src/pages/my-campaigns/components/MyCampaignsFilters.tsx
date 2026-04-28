@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface MyCampaignsFiltersProps {
   value: string;
   onChange: (status: string) => void;

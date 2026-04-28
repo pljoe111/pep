@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Lock } from 'lucide-react';
-import type { CampaignSummaryDto, UpdateCampaignDto } from 'api-client';
+import type { CampaignListDto, UpdateCampaignDto } from 'api-client';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Input } from '../../../components/ui/Input';
 import { Textarea } from '../../../components/ui/Textarea';
@@ -10,13 +10,13 @@ import { useUpdateCampaign } from '../../../api/hooks/useCampaigns';
 import { useToast } from '../../../hooks/useToast';
 
 interface EditCampaignSheetProps {
-  campaign: CampaignSummaryDto | null;
+  campaign: CampaignListDto | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function EditCampaignSheet({ campaign, isOpen, onClose }: EditCampaignSheetProps) {
-  const { toast } = useToast();
+  const { success, error: toastError } = useToast();
   const {
     register,
     handleSubmit,
@@ -26,7 +26,7 @@ export function EditCampaignSheet({ campaign, isOpen, onClose }: EditCampaignShe
   } = useForm<UpdateCampaignDto>({
     defaultValues: {
       title: campaign?.title ?? '',
-      description: campaign?.description ?? '',
+      description: '',
     },
   });
 
@@ -36,32 +36,35 @@ export function EditCampaignSheet({ campaign, isOpen, onClose }: EditCampaignShe
     if (campaign) {
       reset({
         title: campaign.title,
-        description: campaign.description,
+        description: '',
       });
     }
   }, [campaign, reset]);
 
-  const watchTitle = watch('title', '');
+  const watchTitle = watch('title') ?? '';
 
   const onSubmit = (data: UpdateCampaignDto) => {
     updateMutation.mutate(data, {
       onSuccess: () => {
-        toast({ title: 'Campaign updated', variant: 'success' });
+        success('Campaign updated');
         onClose();
       },
-      onError: (error: any) => {
-        toast({
-          title: 'Update failed',
-          message: error.response?.data?.message || 'An error occurred',
-          variant: 'danger',
-        });
+      onError: (err: unknown) => {
+        const apiErr = err as { response?: { data?: { message?: string } } };
+        toastError(apiErr.response?.data?.message ?? 'An error occurred');
       },
     });
   };
 
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title="Edit Campaign">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSubmit(onSubmit)(e);
+        }}
+        className="space-y-6"
+      >
         <div className="space-y-1">
           <div className="flex justify-between items-end">
             <label className="text-sm font-medium text-text">Title</label>

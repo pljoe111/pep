@@ -13,6 +13,14 @@ interface ContributeSheetProps {
   onClose: () => void;
 }
 
+type ContributeCurrency = 'usdc' | 'usdt' | 'pyusd';
+
+const CURRENCY_OPTIONS: { value: ContributeCurrency; label: string; description: string }[] = [
+  { value: 'usdt', label: 'USDT', description: 'Tether USD' },
+  { value: 'usdc', label: 'USDC', description: 'USD Coin' },
+  { value: 'pyusd', label: 'PYUSD', description: 'PayPal USD' },
+];
+
 const QUICK_AMOUNTS = [10, 25, 50, 100];
 
 export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheetProps) => {
@@ -22,8 +30,9 @@ export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheet
 
   const [amount, setAmount] = useState<string>('');
   const [selectedQuickAmount, setSelectedQuickAmount] = useState<number | null>(null);
+  const [currency, setCurrency] = useState<ContributeCurrency>('usdt');
 
-  const balance = balanceData?.balance || 0;
+  const balance = balanceData?.balance ?? 0;
   const numericAmount = parseFloat(amount) || 0;
   const isInsufficient = numericAmount > balance;
   const isValid = numericAmount > 0 && !isInsufficient;
@@ -43,7 +52,7 @@ export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheet
     if (!isValid) return;
 
     contribute(
-      { amount: numericAmount, currency: 'usdt' }, // Defaulting to USDT as per rules
+      { amount: numericAmount, currency },
       {
         onSuccess: () => {
           toast.success('Contribution successful!');
@@ -51,8 +60,9 @@ export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheet
           setAmount('');
           setSelectedQuickAmount(null);
         },
-        onError: (error: any) => {
-          toast.error(error?.response?.data?.message || 'Failed to contribute');
+        onError: (error: unknown) => {
+          const msg = error instanceof Error ? error.message : 'Failed to contribute';
+          toast.error(msg);
         },
       }
     );
@@ -66,11 +76,34 @@ export const ContributeSheet = ({ campaignId, isOpen, onClose }: ContributeSheet
           <p className="text-3xl font-extrabold text-text">{formatUSD(balance)}</p>
         </div>
 
+        {/* Currency selector */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-text-2 uppercase tracking-wide">Currency</p>
+          <div className="flex gap-2">
+            {CURRENCY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCurrency(opt.value)}
+                className={[
+                  'flex-1 min-h-[44px] rounded-xl border px-3 py-2 text-sm font-semibold transition-all',
+                  currency === opt.value
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface border-border text-text hover:border-primary/50',
+                ].join(' ')}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             {QUICK_AMOUNTS.map((val) => (
               <button
                 key={val}
+                type="button"
                 onClick={() => handleQuickAmountClick(val)}
                 className={[
                   'flex-1 min-w-[70px] rounded-full border px-4 py-2 text-sm font-semibold transition-all min-h-[44px]',

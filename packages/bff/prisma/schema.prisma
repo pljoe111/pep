@@ -32,6 +32,7 @@ enum CampaignStatus {
 enum Currency {
   usdc
   usdt
+  pyusd
 }
 
 enum AccountType {
@@ -275,13 +276,14 @@ model CampaignEscrow {
 }
 
 // §new — One row, seeded at startup. On-chain balance cache written by ReconciliationWorker after
-// each hourly pass. usdc_balance and usdt_balance are display-unit values (not raw lamports).
+// each hourly pass. usdc_balance, usdt_balance, pyusd_balance are display-unit values (not raw lamports).
 // This table is NOT part of the ledger formula — it is a read-only snapshot of on-chain state.
 model MasterWallet {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usdc_balance Decimal  @default(0) @db.Decimal(18, 6)
-  usdt_balance Decimal  @default(0) @db.Decimal(18, 6)
-  updated_at   DateTime @updatedAt @db.Timestamptz
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usdc_balance  Decimal  @default(0) @db.Decimal(18, 6)
+  usdt_balance  Decimal  @default(0) @db.Decimal(18, 6)
+  pyusd_balance Decimal  @default(0) @db.Decimal(18, 6)
+  updated_at    DateTime @updatedAt @db.Timestamptz
 
   @@map("master_wallet")
 }

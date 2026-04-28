@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { WizardFormState } from '../types';
 import { Card } from '../../../components/ui/Card';

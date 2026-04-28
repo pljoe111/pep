@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
@@ -58,8 +58,9 @@ export function NotificationPrefsForm() {
       onSuccess: () => {
         success('Notification preferences saved');
       },
-      onError: (err: any) => {
-        toastError(err.response?.data?.message || 'Failed to save preferences');
+      onError: (err: unknown) => {
+        const apiErr = err as { response?: { data?: { message?: string } } };
+        toastError(apiErr.response?.data?.message ?? 'Failed to save preferences');
       },
     });
   };

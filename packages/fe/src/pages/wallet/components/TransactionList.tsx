@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import type { LedgerTransactionDto } from 'api-client';
 import { useTransactions } from '../../../api/hooks/useWallet';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -40,38 +40,27 @@ export function TransactionList({ page, onPageChange, onDepositClick }: Transact
     );
   }
 
-  const getTxLabel = (tx: any) => {
+  const getTxLabel = (tx: LedgerTransactionDto): React.ReactNode => {
     switch (tx.transaction_type) {
       case 'deposit':
         return 'Deposit';
       case 'withdrawal':
         return 'Withdrawal';
       case 'contribution':
-        return (
-          <span>
-            Contribution to{' '}
-            {tx.reference_id ? (
-              <Link
-                to={`/campaigns/${tx.to_account_id}`}
-                className="text-primary hover:underline font-medium"
-              >
-                {tx.related_campaign_title || 'Campaign'}
-              </Link>
-            ) : (
-              'Campaign'
-            )}
-          </span>
-        );
+        return 'Contribution';
       case 'refund':
         return 'Refund';
       case 'payout':
         return 'Payout';
+      case 'fee':
+        return 'Fee';
       default:
-        return tx.transaction_type;
+        return String(tx.transaction_type);
     }
   };
 
-  const isPositive = (type: string) => ['deposit', 'refund', 'payout'].includes(type);
+  const isPositive = (type: LedgerTransactionDto['transaction_type']) =>
+    (['deposit', 'refund', 'payout'] as const).includes(type as 'deposit' | 'refund' | 'payout');
 
   return (
     <div className="space-y-4">
@@ -109,9 +98,7 @@ export function TransactionList({ page, onPageChange, onDepositClick }: Transact
               <div className="flex items-center gap-3">
                 <span className="text-xs text-text-3">{formatDate(tx.created_at)}</span>
                 {tx.status !== 'completed' && (
-                  <Badge variant={tx.status === 'pending' ? 'amber' : 'red'} size="sm">
-                    {tx.status}
-                  </Badge>
+                  <Badge variant={tx.status === 'pending' ? 'amber' : 'red'}>{tx.status}</Badge>
                 )}
               </div>
             </div>

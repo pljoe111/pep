@@ -43,6 +43,9 @@ export const env = cleanEnv(process.env, {
   SOLANA_RPC_URL: str({ default: 'https://api.devnet.solana.com' }),
   USDC_MINT: str(),
   USDT_MINT: str(),
+  PYUSD_MINT: str(),
+  // mainnet: 2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo
+  // devnet:  CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM
   MASTER_WALLET_PUBLIC_KEY: str(),
   /**
    * SECURITY: This key must NEVER be logged or returned by any API.
@@ -83,9 +86,11 @@ export const env = cleanEnv(process.env, {
   EMAIL_FROM: str({ default: 'noreply@peptest.com' }),
   OPERATOR_ALERT_EMAIL: str({ default: 'ops@peptest.com' }),
 
-  // ─── Consolidation (USDC → USDT swap via Jupiter) ─────────────────────────
-  /** Minimum USDC display-unit balance on master wallet before auto-consolidation triggers */
+  // ─── Consolidation (non-USDT → USDT swap via Jupiter) — safety-net only ───
+  /** Minimum USDC display-unit balance on master wallet before safety-net consolidation triggers */
   CONSOLIDATION_THRESHOLD_USDC: num({ default: 100 }),
+  /** Minimum PyUSD display-unit balance on master wallet before safety-net consolidation triggers */
+  CONSOLIDATION_THRESHOLD_PYUSD: num({ default: 100 }),
 
   // ─── OCR Worker ────────────────────────────────────────────────────────────
   /** When true, the background OCR worker will NOT start. Requires restart. */
