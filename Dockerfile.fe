@@ -35,12 +35,20 @@ RUN pnpm --filter fe build
 # ── Stage 2: Production (nginx) ───────────────────────────────────────────────
 FROM nginx:alpine AS production
 
+# gettext provides envsubst (substitutes ${VAR} in nginx.conf at startup)
+RUN apk add --no-cache gettext
+
 # Copy built static files
 COPY --from=builder /app/packages/fe/dist /usr/share/nginx/html
 
-# Nginx config: SPA routing + gzip + security headers + /health endpoint
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx template — envsubst replaces ${BFF_INTERNAL_URL} at container start
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Default BFF URL for docker-compose local dev (service name "bff" on port 3000)
+ENV BFF_INTERNAL_URL=http://bff:3000
 
 EXPOSE 80
 
+# nginx docker entrypoint automatically processes /etc/nginx/templates/*.template
+# via envsubst and writes them to /etc/nginx/conf.d/ before starting nginx.
 CMD ["nginx", "-g", "daemon off;"]

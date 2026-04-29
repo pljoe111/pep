@@ -47,6 +47,9 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
+    environment:
+      # Points nginx's /api proxy to the bff service inside the compose network
+      BFF_INTERNAL_URL: http://bff:3000
     ports:
       - '${FE_PORT:-8080}:80'
     depends_on:
