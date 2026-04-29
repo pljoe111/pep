@@ -1,109 +1,95 @@
 # Deploying to DigitalOcean App Platform
 
-## One-click deploy
+No CLI tools required — everything is done through the DigitalOcean dashboard.
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/YOUR_ORG/YOUR_REPO/tree/main)
+---
 
-> Replace the URL above with your actual GitHub repo URL after pushing.
+## One-click deploy (after pushing to GitHub)
+
+1. Push this repo to GitHub (any branch, e.g. `main`)
+2. Open [https://cloud.digitalocean.com/apps/new](https://cloud.digitalocean.com/apps/new)
+3. Click **GitHub** → authorize → select your repo + branch
+4. Click **Next** — DO will detect the two Dockerfiles automatically
+5. On the **Resources** screen you will see `bff` and `fe` services — leave defaults
+6. On the **Environment Variables** screen, fill in the secrets listed below
+7. Click **Create Resources** — first build takes ~5–10 min
+
+Your app will be live at `https://<app-name>.ondigitalocean.app`
 
 ---
 
 ## What gets deployed
 
-| Component | Type                                   | Size (starter)       |
-| --------- | -------------------------------------- | -------------------- |
-| `bff`     | Docker service (Express API)           | `apps-s-1vcpu-0.5gb` |
-| `fe`      | Docker service (nginx SPA + API proxy) | `apps-s-1vcpu-0.5gb` |
-| `db`      | Managed PostgreSQL 16                  | `db-s-1vcpu-1gb`     |
+| Component | Type                                      | Monthly cost (starter) |
+| --------- | ----------------------------------------- | ---------------------- |
+| `bff`     | Docker service — Express API              | ~$5                    |
+| `fe`      | Docker service — nginx SPA + `/api` proxy | ~$5                    |
+| `db`      | Managed PostgreSQL 16                     | ~$15                   |
 
-Traffic flow: `Internet → fe (nginx :80) → /api/* proxied → bff (:3000) → db`
+**Traffic flow:** `Browser → fe (nginx :80) → /api/* proxied to bff (:3000) → PostgreSQL`
 
----
-
-## Pre-requisites
-
-- [doctl](https://docs.digitalocean.com/reference/doctl/how-to/install/) installed and authenticated (`doctl auth init`)
-- Your repo pushed to GitHub with the `main` branch
+The `fe` and `bff` services communicate over DO's **private network** — the BFF port is never exposed to the internet directly.
 
 ---
 
-## Option A — CLI deploy (recommended)
+## Environment variables to set in the dashboard
 
-```bash
-# 1. Validate the spec
-doctl apps spec validate .do/app.yaml
+Go to **App → Settings → App-Level Environment Variables** and add:
 
-# 2. Create the app (first deploy ~5 min)
-doctl apps create --spec .do/app.yaml
+### Required secrets (click the 🔒 "Secret" toggle for each)
 
-# 3. Get the app ID
-doctl apps list
+| Variable                    | Value                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| `JWT_SECRET`                | Any random 32+ character string — e.g. paste output of `openssl rand -hex 32` |
+| `MASTER_WALLET_PUBLIC_KEY`  | Your Solana master wallet public key                                          |
+| `MASTER_WALLET_PRIVATE_KEY` | Your Solana master wallet private key (base58)                                |
+| `ENCRYPTION_KEY`            | Exactly 64 hex characters — e.g. `openssl rand -hex 32`                       |
+| `SMTP_USER`                 | Your Gmail address (or SMTP username)                                         |
+| `SMTP_PASS`                 | Your Gmail App Password (not your account password)                           |
 
-# 4. Set secrets (replace placeholders)
-APP_ID=<your-app-id>
+### Optional secrets
 
-doctl apps update $APP_ID --spec .do/app.yaml  # re-applies spec
+| Variable                | Value                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`        | From [resend.com](https://resend.com) — only needed if you change `EMAIL_PROVIDER` to `resend` |
+| `AWS_ACCESS_KEY_ID`     | AWS IAM key — only needed for COA file uploads to S3                                           |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret                                                                                 |
 
-# Set each secret via the dashboard, OR use doctl:
-doctl apps update $APP_ID --set-env \
-  JWT_SECRET=$(openssl rand -hex 32) \
-  MASTER_WALLET_PUBLIC_KEY=<your-pubkey> \
-  MASTER_WALLET_PRIVATE_KEY=<your-privkey> \
-  ENCRYPTION_KEY=$(openssl rand -hex 32) \
-  SMTP_USER=<your-smtp-user> \
-  SMTP_PASS=<your-smtp-pass>
-```
+### Everything else has safe defaults
 
----
+`DATABASE_URL` is **automatically injected** from the managed `db` component — do not set it manually.
 
-## Option B — Dashboard deploy
-
-1. Go to **Apps → Create App** in the [DigitalOcean dashboard](https://cloud.digitalocean.com/apps)
-2. Connect your GitHub repo → select branch `main`
-3. Click **Edit Plan**, upload or paste the contents of [`.do/app.yaml`](.do/app.yaml)
-4. Click **Next** — DO will detect both Dockerfiles automatically
-5. On the **Env Vars** screen, fill in all `SECRET` fields (see table below)
-6. Click **Create Resources** — first build takes ~5–10 min
-
----
-
-## Required secrets
-
-These must be set before the app can start. Everything else has a safe default.
-
-| Variable                    | How to generate                                       | Required                        |
-| --------------------------- | ----------------------------------------------------- | ------------------------------- |
-| `JWT_SECRET`                | `openssl rand -hex 32`                                | ✅                              |
-| `MASTER_WALLET_PUBLIC_KEY`  | Your Solana master wallet pubkey                      | ✅                              |
-| `MASTER_WALLET_PRIVATE_KEY` | Your Solana master wallet private key (base58)        | ✅                              |
-| `ENCRYPTION_KEY`            | `openssl rand -hex 32` (must be exactly 64 hex chars) | ✅                              |
-| `SMTP_USER`                 | Your SMTP username / Gmail address                    | ✅ (if using nodemailer)        |
-| `SMTP_PASS`                 | Your SMTP password / Gmail App Password               | ✅ (if using nodemailer)        |
-| `RESEND_API_KEY`            | From [resend.com](https://resend.com) dashboard       | ✅ (if `EMAIL_PROVIDER=resend`) |
-| `AWS_ACCESS_KEY_ID`         | AWS IAM key for S3 COA uploads                        | Optional                        |
-| `AWS_SECRET_ACCESS_KEY`     | AWS IAM secret                                        | Optional                        |
-
-> ⚠️ `DATABASE_URL` is **automatically injected** from the managed `db` component — do not set it manually.
+All other variables (`SOLANA_RPC_URL`, `USDC_MINT`, `USDT_MINT`, etc.) are pre-filled in [`.do/app.yaml`](.do/app.yaml) with mainnet defaults and can be changed in the dashboard after deploy.
 
 ---
 
 ## Post-deploy checklist
 
-- [ ] Visit `https://<your-app>.ondigitalocean.app/health` → should return `{"status":"ok"}`
-- [ ] Visit `https://<your-app>.ondigitalocean.app/api/app-info` → should return app version JSON
-- [ ] Log in with the seeded admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars, defaulting to `admin@example.com` / `yourStrongPasswordHere`)
-- [ ] Change the admin password immediately
-- [ ] Set `ENABLE_SWAGGER=false` in production (already defaulted to `false` in the spec)
+- [ ] `https://<your-app>.ondigitalocean.app/health` → `{"status":"ok"}`
+- [ ] `https://<your-app>.ondigitalocean.app/api/app-info` → JSON with version
+- [ ] Log in with the seeded admin account (`admin@example.com` / `yourStrongPasswordHere`)
+- [ ] **Change the admin password immediately** via the Account page
+- [ ] Verify email sending works (trigger a password reset)
 
 ---
 
-## Local Docker Compose (for testing the production build)
+## How to generate secrets on macOS (no tools needed except Terminal)
 
 ```bash
-# Copy and fill in your secrets
+# JWT_SECRET and ENCRYPTION_KEY — run each, copy the output
+openssl rand -hex 32
+openssl rand -hex 32
+```
+
+---
+
+## Local Docker Compose (test the production build locally)
+
+```bash
+# 1. Copy the example env file and fill in your values
 cp packages/bff/.env.example packages/bff/.env
 
-# Build and start all services
+# 2. Build and start everything
 docker compose up --build
 
 # Frontend:  http://localhost:8080
@@ -112,16 +98,12 @@ docker compose up --build
 
 ---
 
-## Scaling
+## Scaling & production hardening
 
-To scale the BFF horizontally, update `instance_count` in [`.do/app.yaml`](.do/app.yaml) and redeploy:
-
-```bash
-doctl apps update $APP_ID --spec .do/app.yaml
-```
-
-For production, also:
-
-- Set `production: true` on the `db` component (enables daily backups)
-- Upgrade `db` to `db-s-1vcpu-2gb` or higher
-- Add a DO Spaces bucket and point `AWS_S3_BUCKET` + `AWS_S3_ENDPOINT` to it for COA uploads
+| Setting                   | Where                           | Recommendation                          |
+| ------------------------- | ------------------------------- | --------------------------------------- |
+| `instance_count` on `bff` | Dashboard → bff → Edit Plan     | Set to 2+ for HA                        |
+| `db` size                 | Dashboard → db → Resize         | `db-s-1vcpu-2gb` minimum for production |
+| `production: true` on db  | [``.do/app.yaml`](.do/app.yaml) | Enables daily backups                   |
+| `ENABLE_SWAGGER`          | bff env vars                    | Already `false` in spec                 |
+| S3 for COA uploads        | Add `AWS_*` env vars            | Use DO Spaces (S3-compatible)           |
