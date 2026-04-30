@@ -6,8 +6,9 @@
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
   },
   "scripts": {
+    "postinstall": "pnpm rebuild",
     "dev": "tsoa spec-and-routes && ts-node-dev --transpile-only --inspect -- src/server.ts",
-    "build": "pnpm exec prisma generate && tsoa spec-and-routes && tsc",
+    "build": "pnpm exec prisma generate && tsoa spec-and-routes && tsc && cp src/generated/swagger.json dist/generated/swagger.json",
     "start": "node dist/server.js",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
