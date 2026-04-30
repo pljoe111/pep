@@ -14,7 +14,7 @@
     "build:api-client": "pnpm generate:client && pnpm --filter api-client build",
     "build:bff": "pnpm --filter bff build",
     "build:fe": "pnpm --filter fe build",
-    "build": "pnpm build:common && pnpm build:api-client && pnpm build:bff && pnpm build:fe && pnpm lint",
+    "build": "pnpm build:common && pnpm build:bff && pnpm build:fe && pnpm lint",
     "lint": "pnpm --filter common lint && pnpm --filter bff lint && pnpm --filter fe lint && pnpm --filter api-client lint",
     "format": "pnpm --filter common format && pnpm --filter bff format && pnpm --filter fe format && pnpm --filter api-client format",
     "format:check": "pnpm --filter common format:check && pnpm --filter bff format:check && pnpm --filter fe format:check && pnpm --filter api-client format:check",

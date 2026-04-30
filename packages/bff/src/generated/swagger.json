@@ -1,0 +1,7044 @@
+{
+	"openapi": "3.0.0",
+	"components": {
+		"examples": {},
+		"headers": {},
+		"parameters": {},
+		"requestBodies": {},
+		"responses": {},
+		"schemas": {
+			"WalletBalanceDto": {
+				"properties": {
+					"balance": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"balance"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DepositAddressDto": {
+				"properties": {
+					"address": {
+						"type": "string",
+						"description": "Base58 Solana public key"
+					},
+					"qr_hint": {
+						"type": "string",
+						"description": "solana:{address} URI for QR code generation"
+					}
+				},
+				"required": [
+					"address",
+					"qr_hint"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"WithdrawResponseDto": {
+				"properties": {
+					"ledger_transaction_id": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"pending"
+						],
+						"nullable": false
+					}
+				},
+				"required": [
+					"ledger_transaction_id",
+					"status"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"WithdrawDto": {
+				"properties": {
+					"amount": {
+						"type": "number",
+						"format": "double"
+					},
+					"destination_address": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"amount",
+					"destination_address"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionType": {
+				"type": "string",
+				"enum": [
+					"deposit",
+					"withdrawal",
+					"contribution",
+					"refund",
+					"payout",
+					"fee"
+				]
+			},
+			"Currency": {
+				"type": "string",
+				"enum": [
+					"usdc",
+					"usdt",
+					"pyusd"
+				]
+			},
+			"AccountType": {
+				"type": "string",
+				"enum": [
+					"user",
+					"campaign",
+					"master",
+					"fee",
+					"external"
+				]
+			},
+			"TxStatus": {
+				"type": "string",
+				"enum": [
+					"completed",
+					"pending",
+					"confirmed",
+					"failed"
+				]
+			},
+			"LedgerTransactionDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"transaction_type": {
+						"$ref": "#/components/schemas/TransactionType"
+					},
+					"amount": {
+						"type": "number",
+						"format": "double"
+					},
+					"currency": {
+						"$ref": "#/components/schemas/Currency"
+					},
+					"from_account_type": {
+						"$ref": "#/components/schemas/AccountType"
+					},
+					"to_account_type": {
+						"$ref": "#/components/schemas/AccountType"
+					},
+					"status": {
+						"$ref": "#/components/schemas/TxStatus"
+					},
+					"onchain_signature": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"transaction_type",
+					"amount",
+					"currency",
+					"from_account_type",
+					"to_account_type",
+					"status",
+					"onchain_signature",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_LedgerTransactionDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/LedgerTransactionDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ContributionStatus": {
+				"type": "string",
+				"enum": [
+					"completed",
+					"refunded"
+				]
+			},
+			"ContributionDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"campaign_id": {
+						"type": "string"
+					},
+					"campaign_title": {
+						"type": "string"
+					},
+					"contributor": {
+						"properties": {
+							"username": {
+								"type": "string",
+								"nullable": true
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"username",
+							"id"
+						],
+						"type": "object"
+					},
+					"amount_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"currency": {
+						"$ref": "#/components/schemas/Currency"
+					},
+					"status": {
+						"$ref": "#/components/schemas/ContributionStatus"
+					},
+					"contributed_at": {
+						"type": "string"
+					},
+					"refunded_at": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"campaign_id",
+					"campaign_title",
+					"contributor",
+					"amount_usd",
+					"currency",
+					"status",
+					"contributed_at",
+					"refunded_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_ContributionDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/ContributionDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"VendorStatus": {
+				"type": "string",
+				"enum": [
+					"pending",
+					"approved",
+					"rejected"
+				]
+			},
+			"VendorSummaryDto": {
+				"description": "Lightweight shape returned by the vendor search endpoint",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"website": {
+						"type": "string",
+						"nullable": true
+					},
+					"country": {
+						"type": "string",
+						"nullable": true
+					},
+					"status": {
+						"$ref": "#/components/schemas/VendorStatus"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"website",
+					"country",
+					"status"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"VendorDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"website": {
+						"type": "string",
+						"nullable": true
+					},
+					"country": {
+						"type": "string",
+						"nullable": true
+					},
+					"telegram_group": {
+						"type": "string",
+						"nullable": true
+					},
+					"contact_notes": {
+						"type": "string",
+						"nullable": true
+					},
+					"status": {
+						"$ref": "#/components/schemas/VendorStatus"
+					},
+					"submitted_by": {
+						"type": "string"
+					},
+					"reviewed_by": {
+						"type": "string",
+						"nullable": true
+					},
+					"reviewed_at": {
+						"type": "string",
+						"nullable": true
+					},
+					"review_notes": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"updated_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"website",
+					"country",
+					"telegram_group",
+					"contact_notes",
+					"status",
+					"submitted_by",
+					"reviewed_by",
+					"reviewed_at",
+					"review_notes",
+					"created_at",
+					"updated_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateVendorDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"website": {
+						"type": "string"
+					},
+					"country": {
+						"type": "string"
+					},
+					"telegram_group": {
+						"type": "string"
+					},
+					"contact_notes": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"name"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateVendorDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"website": {
+						"type": "string"
+					},
+					"country": {
+						"type": "string"
+					},
+					"telegram_group": {
+						"type": "string"
+					},
+					"contact_notes": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/VendorStatus"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ReviewVendorDto": {
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": [
+							"approved",
+							"rejected"
+						]
+					},
+					"review_notes": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"status"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ClaimType": {
+				"type": "string",
+				"enum": [
+					"campaign_creator",
+					"contributor",
+					"lab_approver",
+					"admin"
+				]
+			},
+			"UserStatsDto": {
+				"properties": {
+					"total_contributed_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"campaigns_created": {
+						"type": "number",
+						"format": "double"
+					},
+					"campaigns_successful": {
+						"type": "number",
+						"format": "double"
+					},
+					"campaigns_refunded": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"total_contributed_usd",
+					"campaigns_created",
+					"campaigns_successful",
+					"campaigns_refunded"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UserDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"email": {
+						"type": "string"
+					},
+					"username": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_banned": {
+						"type": "boolean"
+					},
+					"email_verified": {
+						"type": "boolean"
+					},
+					"claims": {
+						"items": {
+							"$ref": "#/components/schemas/ClaimType"
+						},
+						"type": "array"
+					},
+					"stats": {
+						"$ref": "#/components/schemas/UserStatsDto"
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"email",
+					"username",
+					"is_banned",
+					"email_verified",
+					"claims",
+					"stats",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateUserDto": {
+				"properties": {
+					"username": {
+						"type": "string"
+					},
+					"timezone": {
+						"type": "string"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"NotificationPreferenceChannelDto": {
+				"properties": {
+					"email": {
+						"type": "boolean"
+					},
+					"in_app": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"email",
+					"in_app"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"NotificationPreferencesDto": {
+				"properties": {
+					"campaign_funded": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"campaign_locked": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"samples_shipped": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"coa_uploaded": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"campaign_refunded": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"campaign_resolved": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"deposit_confirmed": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"withdrawal_sent": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					},
+					"withdrawal_failed": {
+						"$ref": "#/components/schemas/NotificationPreferenceChannelDto"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PublicUserProfileDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"username": {
+						"type": "string",
+						"nullable": true
+					},
+					"stats": {
+						"properties": {
+							"campaigns_successful": {
+								"type": "number",
+								"format": "double"
+							},
+							"campaigns_created": {
+								"type": "number",
+								"format": "double"
+							},
+							"total_contributed_usd": {
+								"type": "number",
+								"format": "double"
+							}
+						},
+						"required": [
+							"campaigns_successful",
+							"campaigns_created",
+							"total_contributed_usd"
+						],
+						"type": "object"
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"username",
+					"stats",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ClaimKind": {
+				"type": "string",
+				"enum": [
+					"mass",
+					"other",
+					"purity",
+					"identity",
+					"endotoxins",
+					"sterility"
+				]
+			},
+			"TestClaimTemplateDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"test_id": {
+						"type": "string"
+					},
+					"claim_kind": {
+						"$ref": "#/components/schemas/ClaimKind"
+					},
+					"label": {
+						"type": "string"
+					},
+					"is_required": {
+						"type": "boolean"
+					},
+					"sort_order": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"id",
+					"test_id",
+					"claim_kind",
+					"label",
+					"is_required",
+					"sort_order"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TestDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"usp_code": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_active": {
+						"type": "boolean"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"claim_templates": {
+						"items": {
+							"$ref": "#/components/schemas/TestClaimTemplateDto"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"description",
+					"usp_code",
+					"is_active",
+					"vials_required",
+					"created_at",
+					"claim_templates"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateTestDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"usp_code": {
+						"type": "string"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"name",
+					"description"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateTestDto": {
+				"properties": {
+					"is_active": {
+						"type": "boolean"
+					},
+					"name": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"usp_code": {
+						"type": "string"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateTestClaimTemplateDto": {
+				"properties": {
+					"claim_kind": {
+						"$ref": "#/components/schemas/ClaimKind"
+					},
+					"label": {
+						"type": "string"
+					},
+					"is_required": {
+						"type": "boolean"
+					},
+					"sort_order": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"claim_kind",
+					"label"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateTestClaimTemplateDto": {
+				"properties": {
+					"label": {
+						"type": "string"
+					},
+					"is_required": {
+						"type": "boolean"
+					},
+					"sort_order": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PeptideSummaryDto": {
+				"description": "Lightweight shape used in wizard dropdowns",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"aliases": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"is_active": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"aliases",
+					"is_active"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PeptideDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"aliases": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"description": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_active": {
+						"type": "boolean"
+					},
+					"created_by": {
+						"type": "string"
+					},
+					"approved_by": {
+						"type": "string",
+						"nullable": true
+					},
+					"approved_at": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"aliases",
+					"description",
+					"is_active",
+					"created_by",
+					"approved_by",
+					"approved_at",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreatePeptideDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"aliases": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"description": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"name"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdatePeptideDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"aliases": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"description": {
+						"type": "string"
+					},
+					"is_active": {
+						"type": "boolean"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"NotificationType": {
+				"type": "string",
+				"enum": [
+					"campaign_funded",
+					"campaign_locked",
+					"samples_shipped",
+					"coa_uploaded",
+					"campaign_resolved",
+					"campaign_refunded",
+					"deposit_confirmed",
+					"withdrawal_sent",
+					"withdrawal_failed",
+					"peptide_approved",
+					"peptide_rejected"
+				]
+			},
+			"NotificationDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"user_id": {
+						"type": "string"
+					},
+					"notification_type": {
+						"$ref": "#/components/schemas/NotificationType"
+					},
+					"campaign_id": {
+						"type": "string",
+						"nullable": true
+					},
+					"title": {
+						"type": "string"
+					},
+					"message": {
+						"type": "string"
+					},
+					"is_read": {
+						"type": "boolean"
+					},
+					"sent_email": {
+						"type": "boolean"
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"read_at": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"user_id",
+					"notification_type",
+					"campaign_id",
+					"title",
+					"message",
+					"is_read",
+					"sent_email",
+					"created_at",
+					"read_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_NotificationDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/NotificationDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UnreadCountDto": {
+				"properties": {
+					"count": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"count"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"MarkAllReadResponseDto": {
+				"properties": {
+					"marked_count": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"marked_count"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"LeaderboardEntryDto": {
+				"properties": {
+					"rank": {
+						"type": "number",
+						"format": "double"
+					},
+					"user": {
+						"properties": {
+							"username": {
+								"type": "string",
+								"nullable": true
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"username",
+							"id"
+						],
+						"type": "object"
+					},
+					"value": {
+						"type": "number",
+						"format": "double",
+						"description": "total_usd for contributors; resolved_count for creators"
+					},
+					"period": {
+						"type": "string",
+						"enum": [
+							"all",
+							"monthly"
+						]
+					}
+				},
+				"required": [
+					"rank",
+					"user",
+					"value",
+					"period"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"LabDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"phone_number": {
+						"type": "string",
+						"nullable": true
+					},
+					"country": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_approved": {
+						"type": "boolean"
+					},
+					"is_active": {
+						"type": "boolean"
+					},
+					"approved_at": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"phone_number",
+					"country",
+					"address",
+					"is_approved",
+					"is_active",
+					"approved_at",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_LabDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/LabDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"EndotoxinMode": {
+				"type": "string",
+				"enum": [
+					"exact_value",
+					"pass_fail"
+				]
+			},
+			"LabTestDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"lab_id": {
+						"type": "string"
+					},
+					"test_id": {
+						"type": "string"
+					},
+					"test_name": {
+						"type": "string"
+					},
+					"price_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"typical_turnaround_days": {
+						"type": "number",
+						"format": "double"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					},
+					"endotoxin_mode": {
+						"$ref": "#/components/schemas/EndotoxinMode"
+					},
+					"is_active": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"id",
+					"lab_id",
+					"test_id",
+					"test_name",
+					"price_usd",
+					"typical_turnaround_days",
+					"vials_required",
+					"endotoxin_mode",
+					"is_active"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"LabDetailDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"phone_number": {
+						"type": "string",
+						"nullable": true
+					},
+					"country": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_approved": {
+						"type": "boolean"
+					},
+					"is_active": {
+						"type": "boolean"
+					},
+					"approved_at": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"tests": {
+						"items": {
+							"$ref": "#/components/schemas/LabTestDto"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"phone_number",
+					"country",
+					"address",
+					"is_approved",
+					"is_active",
+					"approved_at",
+					"created_at",
+					"tests"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateLabDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"phone_number": {
+						"type": "string"
+					},
+					"country": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"name",
+					"country"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateLabDto": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"phone_number": {
+						"type": "string"
+					},
+					"country": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateLabTestDto": {
+				"properties": {
+					"test_id": {
+						"type": "string"
+					},
+					"price_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"typical_turnaround_days": {
+						"type": "number",
+						"format": "double"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					},
+					"endotoxin_mode": {
+						"$ref": "#/components/schemas/EndotoxinMode"
+					}
+				},
+				"required": [
+					"test_id",
+					"price_usd",
+					"typical_turnaround_days"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateLabTestDto": {
+				"properties": {
+					"price_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"typical_turnaround_days": {
+						"type": "number",
+						"format": "double"
+					},
+					"vials_required": {
+						"type": "number",
+						"format": "double"
+					},
+					"endotoxin_mode": {
+						"$ref": "#/components/schemas/EndotoxinMode"
+					},
+					"change_reason": {
+						"type": "string"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"MessageResponseDto": {
+				"properties": {
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"message"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"SendTestEmailRequest": {
+				"properties": {
+					"recipient": {
+						"type": "string"
+					},
+					"subject": {
+						"type": "string"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"LabCostBreakdownDto": {
+				"properties": {
+					"lab_id": {
+						"type": "string"
+					},
+					"lab_name": {
+						"type": "string"
+					},
+					"test_id": {
+						"type": "string"
+					},
+					"test_name": {
+						"type": "string"
+					},
+					"price_usd": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"lab_id",
+					"lab_name",
+					"test_id",
+					"test_name",
+					"price_usd"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"EstimateCostResponseDto": {
+				"properties": {
+					"estimated_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"breakdown": {
+						"items": {
+							"$ref": "#/components/schemas/LabCostBreakdownDto"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"estimated_usd",
+					"breakdown"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"VerificationCodeResponseDto": {
+				"properties": {
+					"code": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"code"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CampaignStatus": {
+				"type": "string",
+				"enum": [
+					"created",
+					"funded",
+					"samples_sent",
+					"results_published",
+					"resolved",
+					"refunded"
+				]
+			},
+			"CampaignListDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/CampaignStatus"
+					},
+					"creator": {
+						"properties": {
+							"username": {
+								"type": "string",
+								"nullable": true
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"username",
+							"id"
+						],
+						"type": "object"
+					},
+					"amount_requested_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"current_funding_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"funding_threshold_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"funding_progress_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"is_flagged_for_review": {
+						"type": "boolean"
+					},
+					"is_hidden": {
+						"type": "boolean"
+					},
+					"sample_labels": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"vendor_names": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"lab_names": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"deadline_fundraising": {
+						"type": "string",
+						"nullable": true
+					},
+					"time_remaining_seconds": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"status",
+					"creator",
+					"amount_requested_usd",
+					"current_funding_usd",
+					"funding_threshold_usd",
+					"funding_progress_percent",
+					"is_flagged_for_review",
+					"is_hidden",
+					"sample_labels",
+					"vendor_names",
+					"lab_names",
+					"deadline_fundraising",
+					"time_remaining_seconds",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_CampaignListDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/CampaignListDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"SampleClaimDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"claim_type": {
+						"$ref": "#/components/schemas/ClaimKind"
+					},
+					"mass_amount": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"mass_unit": {
+						"type": "string",
+						"nullable": true
+					},
+					"other_description": {
+						"type": "string",
+						"nullable": true
+					},
+					"purity_percent": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"endotoxin_value": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"endotoxin_pass": {
+						"type": "boolean",
+						"nullable": true
+					},
+					"sterility_pass": {
+						"type": "boolean",
+						"nullable": true
+					},
+					"identity_peptide_id": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_required": {
+						"type": "boolean"
+					},
+					"sort_order": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"id",
+					"claim_type",
+					"mass_amount",
+					"mass_unit",
+					"other_description",
+					"purity_percent",
+					"endotoxin_value",
+					"endotoxin_pass",
+					"sterility_pass",
+					"identity_peptide_id",
+					"is_required",
+					"sort_order"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TestInfoDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"test_id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"usp_code": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"test_id",
+					"name",
+					"usp_code"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"VerificationStatus": {
+				"type": "string",
+				"enum": [
+					"pending",
+					"code_found",
+					"code_not_found",
+					"manually_approved",
+					"rejected"
+				]
+			},
+			"CoaDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"sample_id": {
+						"type": "string"
+					},
+					"file_url": {
+						"type": "string",
+						"description": "Pre-signed S3 URL, TTL from S3_SIGNED_URL_TTL_SECONDS"
+					},
+					"file_name": {
+						"type": "string"
+					},
+					"file_size_bytes": {
+						"type": "number",
+						"format": "double"
+					},
+					"uploaded_at": {
+						"type": "string"
+					},
+					"verification_status": {
+						"$ref": "#/components/schemas/VerificationStatus"
+					},
+					"verification_notes": {
+						"type": "string",
+						"nullable": true
+					},
+					"verified_at": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"sample_id",
+					"file_url",
+					"file_name",
+					"file_size_bytes",
+					"uploaded_at",
+					"verification_status",
+					"verification_notes",
+					"verified_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"SampleDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"vendor_name": {
+						"type": "string"
+					},
+					"vendor_id": {
+						"type": "string",
+						"nullable": true
+					},
+					"vendor": {
+						"properties": {
+							"status": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"status",
+							"name",
+							"id"
+						],
+						"type": "object",
+						"nullable": true
+					},
+					"peptide_id": {
+						"type": "string",
+						"nullable": true
+					},
+					"peptide": {
+						"properties": {
+							"is_active": {
+								"type": "boolean"
+							},
+							"name": {
+								"type": "string"
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"is_active",
+							"name",
+							"id"
+						],
+						"type": "object",
+						"nullable": true
+					},
+					"purchase_date": {
+						"type": "string"
+					},
+					"physical_description": {
+						"type": "string"
+					},
+					"sample_label": {
+						"type": "string"
+					},
+					"order_index": {
+						"type": "number",
+						"format": "double"
+					},
+					"target_lab": {
+						"properties": {
+							"name": {
+								"type": "string"
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"name",
+							"id"
+						],
+						"type": "object"
+					},
+					"claims": {
+						"items": {
+							"$ref": "#/components/schemas/SampleClaimDto"
+						},
+						"type": "array"
+					},
+					"tests": {
+						"items": {
+							"$ref": "#/components/schemas/TestInfoDto"
+						},
+						"type": "array"
+					},
+					"coa": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/CoaDto"
+							}
+						],
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"vendor_name",
+					"vendor_id",
+					"vendor",
+					"peptide_id",
+					"peptide",
+					"purchase_date",
+					"physical_description",
+					"sample_label",
+					"order_index",
+					"target_lab",
+					"claims",
+					"tests",
+					"coa"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateType": {
+				"type": "string",
+				"enum": [
+					"text",
+					"state_change"
+				]
+			},
+			"CampaignUpdateDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"campaign_id": {
+						"type": "string"
+					},
+					"author_id": {
+						"type": "string"
+					},
+					"content": {
+						"type": "string"
+					},
+					"update_type": {
+						"$ref": "#/components/schemas/UpdateType"
+					},
+					"state_change_from": {
+						"type": "string",
+						"nullable": true
+					},
+					"state_change_to": {
+						"type": "string",
+						"nullable": true
+					},
+					"created_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"campaign_id",
+					"author_id",
+					"content",
+					"update_type",
+					"state_change_from",
+					"state_change_to",
+					"created_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ReactionCountsDto": {
+				"properties": {
+					"thumbs_up": {
+						"type": "number",
+						"format": "double"
+					},
+					"rocket": {
+						"type": "number",
+						"format": "double"
+					},
+					"praising_hands": {
+						"type": "number",
+						"format": "double"
+					},
+					"mad": {
+						"type": "number",
+						"format": "double"
+					},
+					"fire": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"thumbs_up",
+					"rocket",
+					"praising_hands",
+					"mad",
+					"fire"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ReactionType": {
+				"type": "string",
+				"enum": [
+					"thumbs_up",
+					"rocket",
+					"praising_hands",
+					"mad",
+					"fire"
+				]
+			},
+			"CampaignDetailDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/CampaignStatus"
+					},
+					"creator": {
+						"properties": {
+							"successful_campaigns": {
+								"type": "number",
+								"format": "double"
+							},
+							"username": {
+								"type": "string",
+								"nullable": true
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"successful_campaigns",
+							"username",
+							"id"
+						],
+						"type": "object"
+					},
+					"verification_code": {
+						"type": "number",
+						"format": "double"
+					},
+					"amount_requested_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"estimated_lab_cost_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"current_funding_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"funding_threshold_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"funding_threshold_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"effective_lock_threshold_usd": {
+						"type": "number",
+						"format": "double",
+						"description": "Effective threshold for locking: min(funding_threshold_usd, global min_funding_threshold_usd)"
+					},
+					"funding_progress_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"platform_fee_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"is_flagged_for_review": {
+						"type": "boolean"
+					},
+					"flagged_reason": {
+						"type": "string",
+						"nullable": true
+					},
+					"is_itemized": {
+						"type": "boolean"
+					},
+					"itemization_data": {},
+					"is_hidden": {
+						"type": "boolean"
+					},
+					"samples": {
+						"items": {
+							"$ref": "#/components/schemas/SampleDto"
+						},
+						"type": "array"
+					},
+					"updates": {
+						"items": {
+							"$ref": "#/components/schemas/CampaignUpdateDto"
+						},
+						"type": "array"
+					},
+					"reactions": {
+						"$ref": "#/components/schemas/ReactionCountsDto"
+					},
+					"my_reaction": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ReactionType"
+							}
+						],
+						"nullable": true
+					},
+					"deadlines": {
+						"properties": {
+							"publish_results": {
+								"type": "string",
+								"nullable": true
+							},
+							"ship_samples": {
+								"type": "string",
+								"nullable": true
+							},
+							"fundraising": {
+								"type": "string",
+								"nullable": true
+							}
+						},
+						"required": [
+							"publish_results",
+							"ship_samples",
+							"fundraising"
+						],
+						"type": "object"
+					},
+					"timestamps": {
+						"properties": {
+							"refunded_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"resolved_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"results_published_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"samples_sent_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"locked_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"funded_at": {
+								"type": "string",
+								"nullable": true
+							},
+							"created_at": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"refunded_at",
+							"resolved_at",
+							"results_published_at",
+							"samples_sent_at",
+							"locked_at",
+							"funded_at",
+							"created_at"
+						],
+						"type": "object"
+					},
+					"refund_reason": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"description",
+					"status",
+					"creator",
+					"verification_code",
+					"amount_requested_usd",
+					"estimated_lab_cost_usd",
+					"current_funding_usd",
+					"funding_threshold_usd",
+					"funding_threshold_percent",
+					"effective_lock_threshold_usd",
+					"funding_progress_percent",
+					"platform_fee_percent",
+					"is_flagged_for_review",
+					"flagged_reason",
+					"is_itemized",
+					"itemization_data",
+					"is_hidden",
+					"samples",
+					"updates",
+					"reactions",
+					"my_reaction",
+					"deadlines",
+					"timestamps",
+					"refund_reason"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"SampleClaimInputDto": {
+				"properties": {
+					"claim_type": {
+						"$ref": "#/components/schemas/ClaimKind"
+					},
+					"mass_amount": {
+						"type": "number",
+						"format": "double"
+					},
+					"mass_unit": {
+						"type": "string"
+					},
+					"other_description": {
+						"type": "string"
+					},
+					"purity_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"endotoxin_value": {
+						"type": "number",
+						"format": "double"
+					},
+					"endotoxin_pass": {
+						"type": "boolean"
+					},
+					"sterility_pass": {
+						"type": "boolean"
+					},
+					"identity_peptide_id": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"claim_type"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TestRequestInputDto": {
+				"properties": {
+					"test_id": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"test_id"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"SampleInputDto": {
+				"properties": {
+					"vendor_name": {
+						"type": "string"
+					},
+					"vendor_id": {
+						"type": "string"
+					},
+					"peptide_id": {
+						"type": "string"
+					},
+					"purchase_date": {
+						"type": "string"
+					},
+					"physical_description": {
+						"type": "string"
+					},
+					"sample_label": {
+						"type": "string"
+					},
+					"target_lab_id": {
+						"type": "string"
+					},
+					"order_index": {
+						"type": "number",
+						"format": "double"
+					},
+					"claims": {
+						"items": {
+							"$ref": "#/components/schemas/SampleClaimInputDto"
+						},
+						"type": "array"
+					},
+					"tests": {
+						"items": {
+							"$ref": "#/components/schemas/TestRequestInputDto"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"vendor_name",
+					"purchase_date",
+					"sample_label",
+					"target_lab_id",
+					"claims",
+					"tests"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateCampaignDto": {
+				"properties": {
+					"title": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"amount_requested_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"funding_threshold_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"is_itemized": {
+						"type": "boolean"
+					},
+					"itemization_data": {},
+					"samples": {
+						"items": {
+							"$ref": "#/components/schemas/SampleInputDto"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"title",
+					"description",
+					"amount_requested_usd",
+					"funding_threshold_percent",
+					"samples"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateCampaignDto": {
+				"properties": {
+					"title": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"is_itemized": {
+						"type": "boolean"
+					},
+					"itemization_data": {}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AddCampaignUpdateDto": {
+				"properties": {
+					"content": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"content"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_CampaignUpdateDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/CampaignUpdateDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AddReactionDto": {
+				"properties": {
+					"reaction_type": {
+						"$ref": "#/components/schemas/ReactionType"
+					}
+				},
+				"required": [
+					"reaction_type"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ContributeDto": {
+				"properties": {
+					"amount": {
+						"type": "number",
+						"format": "double"
+					},
+					"currency": {
+						"$ref": "#/components/schemas/Currency"
+					}
+				},
+				"required": [
+					"amount",
+					"currency"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"RegisterResponseDto": {
+				"properties": {
+					"user": {
+						"$ref": "#/components/schemas/UserDto"
+					},
+					"accessToken": {
+						"type": "string"
+					},
+					"refreshToken": {
+						"type": "string"
+					},
+					"depositAddress": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"user",
+					"accessToken",
+					"refreshToken",
+					"depositAddress"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"RegisterDto": {
+				"properties": {
+					"email": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string",
+						"description": "Min 8 chars, ≥1 uppercase, ≥1 lowercase, ≥1 digit"
+					},
+					"username": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"email",
+					"password"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AuthResponseDto": {
+				"properties": {
+					"user": {
+						"$ref": "#/components/schemas/UserDto"
+					},
+					"accessToken": {
+						"type": "string"
+					},
+					"refreshToken": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"user",
+					"accessToken",
+					"refreshToken"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"LoginDto": {
+				"properties": {
+					"email": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"email",
+					"password"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"RefreshResponseDto": {
+				"properties": {
+					"accessToken": {
+						"type": "string"
+					},
+					"refreshToken": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"accessToken",
+					"refreshToken"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"RefreshTokenDto": {
+				"properties": {
+					"refreshToken": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"refreshToken"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"VerifyEmailDto": {
+				"properties": {
+					"token": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"token"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"GlobalMinimumsConfig": {
+				"description": "Global platform minimums — mirrors the 'global_minimums' Configuration row.",
+				"properties": {
+					"min_contribution_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"min_funding_threshold_usd": {
+						"type": "number",
+						"format": "double"
+					},
+					"min_funding_threshold_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"min_withdrawal_usd": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"min_contribution_usd",
+					"min_funding_threshold_usd",
+					"min_funding_threshold_percent",
+					"min_withdrawal_usd"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AppInfoDto": {
+				"description": "GET /app-info response — spec §9.13",
+				"properties": {
+					"version": {
+						"type": "string"
+					},
+					"network": {
+						"type": "string",
+						"description": "'devnet' | 'mainnet-beta' | 'testnet'"
+					},
+					"usdc_mint": {
+						"type": "string"
+					},
+					"usdt_mint": {
+						"type": "string"
+					},
+					"pyusd_mint": {
+						"type": "string"
+					},
+					"deposit_conversion_fee_bps": {
+						"type": "number",
+						"format": "double",
+						"description": "Basis points charged on USDC/PyUSD deposits for currency conversion. 50 = 0.5%."
+					},
+					"minimums": {
+						"$ref": "#/components/schemas/GlobalMinimumsConfig"
+					},
+					"platform_fee_percent": {
+						"type": "number",
+						"format": "double"
+					},
+					"max_campaign_multiplier": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"version",
+					"network",
+					"usdc_mint",
+					"usdt_mint",
+					"pyusd_mint",
+					"deposit_conversion_fee_bps",
+					"minimums",
+					"platform_fee_percent",
+					"max_campaign_multiplier"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_CampaignDetailDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/CampaignDetailDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminRefundDto": {
+				"properties": {
+					"reason": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"reason"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminFlagCampaignDto": {
+				"properties": {
+					"flagged": {
+						"type": "boolean"
+					},
+					"reason": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"flagged"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminHideCampaignDto": {
+				"properties": {
+					"hidden": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"hidden"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminVerifyCoaDto": {
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": [
+							"approved",
+							"rejected"
+						]
+					},
+					"notes": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"status"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminCoaDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"sample_id": {
+						"type": "string"
+					},
+					"campaign_id": {
+						"type": "string"
+					},
+					"campaign_title": {
+						"type": "string"
+					},
+					"campaign_verification_code": {
+						"type": "number",
+						"format": "double"
+					},
+					"sample_label": {
+						"type": "string"
+					},
+					"file_url": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					},
+					"file_size_bytes": {
+						"type": "number",
+						"format": "double"
+					},
+					"uploaded_at": {
+						"type": "string"
+					},
+					"verification_status": {
+						"$ref": "#/components/schemas/VerificationStatus"
+					},
+					"verification_notes": {
+						"type": "string",
+						"nullable": true
+					},
+					"verified_at": {
+						"type": "string",
+						"nullable": true
+					},
+					"ocr_text": {
+						"type": "string",
+						"nullable": true
+					},
+					"lab_name": {
+						"type": "string"
+					},
+					"test_names": {
+						"items": {
+							"type": "string"
+						},
+						"type": "array"
+					},
+					"sample_mass": {
+						"type": "string",
+						"nullable": true
+					},
+					"creator_id": {
+						"type": "string"
+					},
+					"creator_email": {
+						"type": "string"
+					},
+					"creator_username": {
+						"type": "string",
+						"nullable": true
+					},
+					"rejection_count": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"id",
+					"sample_id",
+					"campaign_id",
+					"campaign_title",
+					"campaign_verification_code",
+					"sample_label",
+					"file_url",
+					"file_name",
+					"file_size_bytes",
+					"uploaded_at",
+					"verification_status",
+					"verification_notes",
+					"verified_at",
+					"ocr_text",
+					"lab_name",
+					"test_names",
+					"sample_mass",
+					"creator_id",
+					"creator_email",
+					"creator_username",
+					"rejection_count"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_AdminCoaDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/AdminCoaDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PaginatedResponseDto_UserDto_": {
+				"properties": {
+					"data": {
+						"items": {
+							"$ref": "#/components/schemas/UserDto"
+						},
+						"type": "array"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"page": {
+						"type": "number",
+						"format": "double"
+					},
+					"limit": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"data",
+					"total",
+					"page",
+					"limit"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminBanUserDto": {
+				"properties": {
+					"banned": {
+						"type": "boolean"
+					},
+					"reason": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"banned"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminClaimDto": {
+				"properties": {
+					"claim_type": {
+						"$ref": "#/components/schemas/ClaimType"
+					},
+					"action": {
+						"type": "string",
+						"enum": [
+							"grant",
+							"revoke"
+						]
+					}
+				},
+				"required": [
+					"claim_type",
+					"action"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConfigurationDto": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"config_key": {
+						"type": "string"
+					},
+					"config_value": {},
+					"description": {
+						"type": "string"
+					},
+					"updated_at": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"config_key",
+					"config_value",
+					"description",
+					"updated_at"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminUpdateConfigDto": {
+				"properties": {
+					"value": {}
+				},
+				"required": [
+					"value"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"FeeSweepResponseDto": {
+				"properties": {
+					"ledger_transaction_id": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"ledger_transaction_id"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"AdminFeeSweepDto": {
+				"properties": {
+					"destination_address": {
+						"type": "string"
+					},
+					"currency": {
+						"$ref": "#/components/schemas/Currency"
+					}
+				},
+				"required": [
+					"destination_address",
+					"currency"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConsolidationResponseDto": {
+				"properties": {
+					"triggered": {
+						"type": "boolean"
+					},
+					"message": {
+						"type": "string"
+					},
+					"pyusd_triggered": {
+						"type": "boolean"
+					},
+					"pyusd_message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"triggered",
+					"message",
+					"pyusd_triggered",
+					"pyusd_message"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TreasuryDto": {
+				"properties": {
+					"master_wallet": {
+						"properties": {
+							"last_synced_at": {
+								"type": "string"
+							},
+							"total_balance": {
+								"type": "number",
+								"format": "double"
+							},
+							"pyusd_balance": {
+								"type": "number",
+								"format": "double"
+							},
+							"usdt_balance": {
+								"type": "number",
+								"format": "double"
+							},
+							"usdc_balance": {
+								"type": "number",
+								"format": "double"
+							},
+							"public_key": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"last_synced_at",
+							"total_balance",
+							"pyusd_balance",
+							"usdt_balance",
+							"usdc_balance",
+							"public_key"
+						],
+						"type": "object"
+					},
+					"fee_account": {
+						"properties": {
+							"available_to_sweep": {
+								"type": "boolean"
+							},
+							"total_fees_exposure": {
+								"type": "number",
+								"format": "double"
+							},
+							"pending_fees_estimate": {
+								"type": "number",
+								"format": "double"
+							},
+							"balance": {
+								"type": "number",
+								"format": "double"
+							}
+						},
+						"required": [
+							"available_to_sweep",
+							"total_fees_exposure",
+							"pending_fees_estimate",
+							"balance"
+						],
+						"type": "object"
+					},
+					"ledger": {
+						"properties": {
+							"total_escrow_balances": {
+								"type": "number",
+								"format": "double"
+							},
+							"total_user_balances": {
+								"type": "number",
+								"format": "double"
+							}
+						},
+						"required": [
+							"total_escrow_balances",
+							"total_user_balances"
+						],
+						"type": "object"
+					}
+				},
+				"required": [
+					"master_wallet",
+					"fee_account",
+					"ledger"
+				],
+				"type": "object",
+				"additionalProperties": false
+			}
+		},
+		"securitySchemes": {
+			"jwt": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	},
+	"info": {
+		"title": "Peptide Crowdfunding Platform API",
+		"version": "1.0.0",
+		"description": "API documentation for the Peptide Crowdfunding BFF service",
+		"contact": {
+			"name": "API Support"
+		}
+	},
+	"paths": {
+		"/wallet/balance": {
+			"get": {
+				"operationId": "GetBalance",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WalletBalanceDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /wallet/balance",
+				"tags": [
+					"Wallet"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/wallet/deposit-address": {
+			"get": {
+				"operationId": "GetDepositAddress",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DepositAddressDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /wallet/deposit-address",
+				"tags": [
+					"Wallet"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/wallet/withdraw": {
+			"post": {
+				"operationId": "Withdraw",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WithdrawResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /wallet/withdraw",
+				"tags": [
+					"Wallet"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/WithdrawDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/wallet/transactions": {
+			"get": {
+				"operationId": "GetTransactions",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_LedgerTransactionDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /wallet/transactions",
+				"tags": [
+					"Wallet"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "type",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/wallet/contributions": {
+			"get": {
+				"operationId": "GetMyContributions",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_ContributionDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /wallet/contributions",
+				"tags": [
+					"Wallet"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/vendors/search": {
+			"get": {
+				"operationId": "SearchVendors",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/VendorSummaryDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /vendors/search?q=\nDebounced vendor name search for wizard combobox.\nReturns non-rejected vendors only.",
+				"tags": [
+					"Vendors"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "q",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/vendors": {
+			"get": {
+				"operationId": "GetAllVendors",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/VendorDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /vendors — admin only\nFull list with optional status filter.",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"pending",
+								"approved",
+								"rejected"
+							]
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "CreateVendor",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /vendors — admin direct create (auto-approved)",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateVendorDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/vendors/{id}": {
+			"get": {
+				"operationId": "GetVendorById",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /vendors/:id — admin",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			},
+			"patch": {
+				"operationId": "UpdateVendor",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /vendors/:id — admin",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateVendorDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeleteVendor",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /vendors/:id — admin, blocked if samples attached",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/vendors/submit": {
+			"post": {
+				"operationId": "SubmitVendor",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /vendors/submit\nUser submits a new vendor for review (status=pending).\nCampaign wizard proceeds immediately; public pages show \"⚠ Unverified\".",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateVendorDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/vendors/{id}/review": {
+			"post": {
+				"operationId": "ReviewVendor",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /vendors/:id/review — admin approve or reject",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReviewVendorDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/vendors/{id}/reinstate": {
+			"post": {
+				"operationId": "ReinstateVendor",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VendorDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /vendors/:id/reinstate — admin (set approved)",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/vendors/{id}/campaign-count": {
+			"get": {
+				"operationId": "GetVendorActiveCampaignCount",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"count": {
+											"type": "number",
+											"format": "double"
+										}
+									},
+									"required": [
+										"count"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /vendors/:id/campaign-count — admin, returns count for suspension warning",
+				"tags": [
+					"Vendors"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/users/me": {
+			"get": {
+				"operationId": "GetMe",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /users/me — spec §9.7",
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			},
+			"patch": {
+				"operationId": "UpdateMe",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /users/me — spec §9.7",
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateUserDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/users/me/notification-preferences": {
+			"patch": {
+				"operationId": "UpdateNotificationPreferences",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /users/me/notification-preferences — spec §9.7",
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/NotificationPreferencesDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/users/{id}/profile": {
+			"get": {
+				"operationId": "GetPublicProfile",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PublicUserProfileDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /users/:id/profile — spec §9.7 (public)",
+				"tags": [
+					"Users"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/tests": {
+			"get": {
+				"operationId": "GetAllTests",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/TestDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /tests",
+				"tags": [
+					"Tests"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "active_only",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "CreateTest",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TestDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /tests — admin required",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateTestDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tests/{id}": {
+			"patch": {
+				"operationId": "UpdateTestRecord",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TestDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /tests/:id — admin required",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateTestDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeleteTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /tests/:id — permanently deletes the test type.\nGuard: fails with 409 if any lab-test records (active or inactive) reference it.\nDisable the test and remove it from all labs before calling this.",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/tests/{id}/disable": {
+			"post": {
+				"operationId": "DisableTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /tests/:id/disable — admin required",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/tests/{id}/enable": {
+			"post": {
+				"operationId": "EnableTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /tests/:id/enable — admin required",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/tests/{testId}/claim-templates": {
+			"get": {
+				"operationId": "GetTestClaimTemplates",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/TestClaimTemplateDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /tests/:testId/claim-templates — list claim templates for a test",
+				"tags": [
+					"Tests"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "CreateTestClaimTemplate",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TestClaimTemplateDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /tests/:testId/claim-templates — create a new claim template",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateTestClaimTemplateDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tests/claim-templates/{id}": {
+			"patch": {
+				"operationId": "UpdateTestClaimTemplate",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TestClaimTemplateDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /tests/claim-templates/:id — update a claim template",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateTestClaimTemplateDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeleteTestClaimTemplate",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /tests/claim-templates/:id — delete a claim template",
+				"tags": [
+					"Tests"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/peptides": {
+			"get": {
+				"operationId": "GetActivePeptides",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/PeptideSummaryDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /peptides\nReturns all active peptides. Used by the wizard for in-memory fuzzy search.",
+				"tags": [
+					"Peptides"
+				],
+				"security": [],
+				"parameters": []
+			},
+			"post": {
+				"operationId": "CreatePeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /peptides — admin direct create (auto-approved)",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreatePeptideDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/peptides/all": {
+			"get": {
+				"operationId": "GetAllPeptides",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/PeptideDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /peptides/all — admin only\nReturns all peptides including unreviewed (is_active=false).",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "show_unreviewed",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						}
+					}
+				]
+			}
+		},
+		"/peptides/submit": {
+			"post": {
+				"operationId": "SubmitPeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /peptides/submit\nUser submits a new peptide for review (is_active=false).\nCampaign wizard proceeds immediately; public pages show \"⚠ Unreviewed Peptide\".",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreatePeptideDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/peptides/{id}": {
+			"patch": {
+				"operationId": "UpdatePeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /peptides/:id",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdatePeptideDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeletePeptide",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /peptides/:id — admin, blocked if FK'd to samples",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/peptides/{id}/approve": {
+			"post": {
+				"operationId": "ApprovePeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /peptides/:id/approve — admin",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/peptides/{id}/reject": {
+			"post": {
+				"operationId": "RejectPeptide",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "Post /peptides/:id/reject — admin",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/peptides/{id}/disable": {
+			"post": {
+				"operationId": "DisablePeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /peptides/:id/disable — admin",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/peptides/{id}/enable": {
+			"post": {
+				"operationId": "EnablePeptide",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PeptideDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /peptides/:id/enable — admin",
+				"tags": [
+					"Peptides"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/notifications": {
+			"get": {
+				"operationId": "GetAllNotifications",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_NotificationDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /notifications",
+				"tags": [
+					"Notifications"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/notifications/unread-count": {
+			"get": {
+				"operationId": "GetUnreadCount",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UnreadCountDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /notifications/unread-count",
+				"tags": [
+					"Notifications"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/notifications/{id}/read": {
+			"patch": {
+				"operationId": "MarkRead",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NotificationDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /notifications/:id/read",
+				"tags": [
+					"Notifications"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/notifications/read-all": {
+			"patch": {
+				"operationId": "MarkAllRead",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MarkAllReadResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /notifications/read-all",
+				"tags": [
+					"Notifications"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/leaderboard/contributors": {
+			"get": {
+				"operationId": "GetContributors",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/LeaderboardEntryDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /leaderboard/contributors",
+				"tags": [
+					"Leaderboard"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "period",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"all",
+								"monthly"
+							]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/leaderboard/creators": {
+			"get": {
+				"operationId": "GetCreators",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/LeaderboardEntryDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /leaderboard/creators",
+				"tags": [
+					"Leaderboard"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "period",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"all",
+								"monthly"
+							]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/labs": {
+			"get": {
+				"operationId": "GetAllLabs",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_LabDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /labs",
+				"tags": [
+					"Labs"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "approved_only",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"in": "query",
+						"name": "active_only",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "Create",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /labs — lab_approver required",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateLabDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/labs/{id}": {
+			"get": {
+				"operationId": "GetLabById",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /labs/:id",
+				"tags": [
+					"Labs"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			},
+			"patch": {
+				"operationId": "Update",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /labs/:id",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateLabDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeactivateLab",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /labs/:id — deactivates lab and all its tests (soft delete)",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/approve": {
+			"post": {
+				"operationId": "Approve",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /labs/:id/approve",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/tests": {
+			"post": {
+				"operationId": "AddTest",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabTestDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /labs/:id/tests",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateLabTestDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/labs/{id}/tests/{testId}": {
+			"patch": {
+				"operationId": "UpdateTest",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LabTestDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /labs/:id/tests/:testId",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateLabTestDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeactivateTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "DELETE /labs/:id/tests/:testId — deactivates (soft delete)",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/tests/{testId}/delete": {
+			"post": {
+				"operationId": "PermanentDeleteLabTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /labs/:id/tests/:testId/delete — permanently deletes a disabled lab-test record.\nGuard: lab-test must already be inactive; fails with 409 if still active.",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/delete": {
+			"post": {
+				"operationId": "PermanentDeleteLab",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /labs/:id/delete — permanently deletes the lab.\nGuard: fails with 409 if any lab-test records (active or inactive) still exist.",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/reactivate": {
+			"post": {
+				"operationId": "ReactivateLab",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /labs/:id/reactivate",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/labs/{id}/tests/{testId}/reactivate": {
+			"post": {
+				"operationId": "ReactivateLabTest",
+				"responses": {
+					"204": {
+						"description": "No content"
+					}
+				},
+				"description": "POST /labs/:id/tests/:testId/reactivate",
+				"tags": [
+					"Labs"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "testId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/email-test/send": {
+			"post": {
+				"operationId": "SendTestEmail",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /email-test/send - Send a test email",
+				"tags": [
+					"EmailTest"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SendTestEmailRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/campaigns/estimate-cost": {
+			"get": {
+				"operationId": "EstimateCost",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EstimateCostResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/estimate-cost — spec §9.13",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "samples",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/verification-code": {
+			"get": {
+				"operationId": "GetVerificationCode",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerificationCodeResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/verification-code — spec §9.13 (preview only; 5 req/min per user)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/campaigns/me": {
+			"get": {
+				"operationId": "GetMyCampaigns",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_CampaignListDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/me — creator's own campaigns",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns": {
+			"get": {
+				"operationId": "GetAllCampaigns",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_CampaignListDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns — public listing",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "search",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "CreateCampaign",
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns — JWT (campaign_creator)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateCampaignDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/campaigns/{id}": {
+			"get": {
+				"operationId": "GetCampaignById",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/:id — public with optional JWT",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			},
+			"patch": {
+				"operationId": "UpdateCampaign",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PATCH /campaigns/:id — JWT (own, status=created)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateCampaignDto"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeleteCampaign",
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				},
+				"description": "DELETE /campaigns/:id — JWT (own)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/lock": {
+			"post": {
+				"operationId": "LockCampaign",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/lock — JWT (own)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/ship-samples": {
+			"post": {
+				"operationId": "ShipSamples",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/ship-samples — JWT (own)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/updates": {
+			"post": {
+				"operationId": "AddUpdate",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignUpdateDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/updates — JWT (own)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AddCampaignUpdateDto"
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"operationId": "GetUpdates",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_CampaignUpdateDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/:id/updates — public",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/coas": {
+			"get": {
+				"operationId": "GetCoas",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/CoaDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/:id/coas — public",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/contributions": {
+			"get": {
+				"operationId": "GetContributions",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_ContributionDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/:id/contributions — JWT",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/reactions": {
+			"get": {
+				"operationId": "GetReactions",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReactionCountsDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /campaigns/:id/reactions — public",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			},
+			"post": {
+				"operationId": "AddReaction",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"created_at": {
+											"type": "string"
+										},
+										"reaction_type": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"created_at",
+										"reaction_type"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/reactions — JWT",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AddReactionDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/campaigns/{id}/reactions/{type}": {
+			"delete": {
+				"operationId": "RemoveReaction",
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				},
+				"description": "DELETE /campaigns/:id/reactions/:type — JWT",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "type",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/campaigns/{id}/contribute": {
+			"post": {
+				"operationId": "Contribute",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ContributionDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/contribute — JWT (contributor)",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ContributeDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/campaigns/{id}/samples/{sampleId}/coa": {
+			"post": {
+				"operationId": "UploadCoa",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CoaDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /campaigns/:id/samples/:sampleId/coa — JWT (own), multipart/form-data",
+				"tags": [
+					"Campaigns"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "path",
+						"name": "sampleId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									}
+								},
+								"required": [
+									"file"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/register": {
+			"post": {
+				"operationId": "Register",
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RegisterResponseDto"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error"
+					}
+				},
+				"description": "POST /auth/register — spec §9.1",
+				"tags": [
+					"Auth"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RegisterDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/login": {
+			"post": {
+				"operationId": "Login",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AuthResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /auth/login — spec §9.1",
+				"tags": [
+					"Auth"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/refresh": {
+			"post": {
+				"operationId": "Refresh",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RefreshResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /auth/refresh — spec §9.1",
+				"tags": [
+					"Auth"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RefreshTokenDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/logout": {
+			"post": {
+				"operationId": "Logout",
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				},
+				"description": "POST /auth/logout — spec §9.1 — deletes all active refresh tokens",
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/auth/me": {
+			"get": {
+				"operationId": "Me",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /auth/me — spec §9.1",
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/auth/verify-email": {
+			"post": {
+				"operationId": "VerifyEmail",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AuthResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /auth/verify-email — spec §9.1",
+				"tags": [
+					"Auth"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/VerifyEmailDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/resend-verification": {
+			"post": {
+				"operationId": "ResendVerification",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /auth/resend-verification — spec §9.1 (JWT required)",
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/app-info": {
+			"get": {
+				"operationId": "GetAppInfo",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AppInfoDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /app-info — spec §9.13",
+				"tags": [
+					"AppInfo"
+				],
+				"security": [],
+				"parameters": []
+			}
+		},
+		"/admin/campaigns": {
+			"get": {
+				"operationId": "GetCampaigns",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_CampaignDetailDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/campaigns",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "flagged",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/admin/users/{userId}/campaigns": {
+			"get": {
+				"operationId": "GetUserCampaigns",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_CampaignDetailDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/users/:userId/campaigns",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "userId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/admin/campaigns/{id}/refund": {
+			"post": {
+				"operationId": "RefundCampaign",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/campaigns/:id/refund",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminRefundDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/campaigns/{id}/flag": {
+			"post": {
+				"operationId": "FlagCampaign",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/campaigns/:id/flag",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminFlagCampaignDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/campaigns/{id}/hide": {
+			"post": {
+				"operationId": "HideCampaign",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CampaignDetailDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/campaigns/:id/hide",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminHideCampaignDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/coas/{id}/verify": {
+			"post": {
+				"operationId": "VerifyCoa",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CoaDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/coas/:id/verify",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminVerifyCoaDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/coas": {
+			"get": {
+				"operationId": "ListCoas",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_AdminCoaDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/coas — list all COAs with optional status filter",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/admin/coas/{id}/run-ocr": {
+			"post": {
+				"operationId": "RunOcr",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CoaDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/coas/:id/run-ocr — trigger OCR synchronously",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/admin/users": {
+			"get": {
+				"operationId": "GetUsers",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedResponseDto_UserDto_"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/users",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "search",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		},
+		"/admin/users/{id}/ban": {
+			"post": {
+				"operationId": "BanUser",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/users/:id/ban",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminBanUserDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/users/{id}/claims": {
+			"post": {
+				"operationId": "ManageClaim",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/users/:id/claims",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminClaimDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/config": {
+			"get": {
+				"operationId": "GetConfig",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/ConfigurationDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/config",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/admin/config/{key}": {
+			"put": {
+				"operationId": "UpdateConfig",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConfigurationDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "PUT /admin/config/:key",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminUpdateConfigDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/fee-sweep": {
+			"post": {
+				"operationId": "SweepFees",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeeSweepResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/fee-sweep",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminFeeSweepDto"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/consolidate": {
+			"post": {
+				"operationId": "TriggerConsolidation",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConsolidationResponseDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "POST /admin/consolidate — swap USDC → USDT on master wallet via Jupiter.\nOnly executes if USDC balance >= CONSOLIDATION_THRESHOLD_USDC.\nRequires admin claim.",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/admin/treasury": {
+			"get": {
+				"operationId": "GetTreasury",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TreasuryDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "GET /admin/treasury — master wallet on-chain snapshot + fee exposure + ledger totals",
+				"tags": [
+					"Admin"
+				],
+				"security": [
+					{
+						"jwt": []
+					}
+				],
+				"parameters": []
+			}
+		}
+	},
+	"servers": [
+		{
+			"url": "/"
+		}
+	]
+}

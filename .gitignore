@@ -6,9 +6,9 @@ node_modules/
 dist/
 build/
 
-# Generated files
-packages/bff/src/generated/
-packages/api-client/src/generated/
+# Generated files — committed to repo, regenerated via pre-push hook
+# packages/bff/src/generated/  ← tracked
+# packages/api-client/src/generated/  ← tracked
 
 # Environment files
 .env

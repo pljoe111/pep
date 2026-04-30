@@ -1,12 +1,19 @@
-#!/usr/bin/env sh
+#!/bin/sh
+# Regenerate tsoa routes/swagger + api-client, then commit if anything changed.
+# Requires: Java (for openapi-generator-cli) and pnpm.
 
-# Source nvm if available
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+echo "▶ Regenerating TSOA spec + routes and api-client..."
+pnpm generate:client || { echo "❌ generate:client failed"; exit 1; }
 
-# Use the Node version from .nvmrc if present
-if [ -f .nvmrc ]; then
-  nvm use
+# Stage only the generated files
+git add \
+  packages/bff/src/generated/ \
+  packages/api-client/src/generated/
+
+# Only commit if something actually changed
+if ! git diff --cached --quiet; then
+  git commit -m "chore: regenerate tsoa + api-client [skip ci]"
+  echo "✅ Committed updated generated files"
+else
+  echo "✅ Generated files unchanged, nothing to commit"
 fi
-
-pnpm build
