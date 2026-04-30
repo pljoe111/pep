@@ -2,12 +2,27 @@
  * Bull queue instances — created once at startup, shared across DI container.
  * All queues connect to Redis via env.REDIS_URL.
  * This is a pure util (no DI) per coding rules §3.1.
+ *
+ * DigitalOcean Managed Valkey uses a self-signed TLS cert on rediss:// URLs.
+ * We pass rejectUnauthorized: false when the scheme is rediss so ioredis
+ * accepts it instead of retrying 20 times and crashing the process.
  */
 import Bull from 'bull';
+import IORedis from 'ioredis';
 import { env } from '../config/env.config';
 
+const isSecureRedis = env.REDIS_URL.startsWith('rediss://');
+
+function makeRedisClient(): IORedis {
+  return new IORedis(env.REDIS_URL, {
+    ...(isSecureRedis && { tls: { rejectUnauthorized: false } }),
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  });
+}
+
 const redisOptions: Bull.QueueOptions = {
-  redis: env.REDIS_URL,
+  createClient: () => makeRedisClient(),
   defaultJobOptions: {
     removeOnComplete: 100,
     removeOnFail: 500,

@@ -8,7 +8,11 @@ import { env } from '../config/env.config';
 @injectable()
 export class PrismaService extends PrismaClient {
   constructor() {
-    const pool = new Pool({ connectionString: env.DATABASE_URL });
+    const requireSsl = !env.DATABASE_URL.includes('localhost');
+    const pool = new Pool({
+      connectionString: env.DATABASE_URL,
+      ...(requireSsl && { ssl: { rejectUnauthorized: false } }),
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
     void this.$connect();
