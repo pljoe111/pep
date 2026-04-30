@@ -1,16 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import type { UserDto } from 'api-client';
 import { Spinner } from '../components/ui/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { authApi } from '../api/apiClient';
 
 type Status = 'verifying' | 'success' | 'error';
-
-interface AuthResponseDto {
-  user: UserDto;
-  accessToken: string;
-  refreshToken: string;
-}
 
 export function VerifyEmailPage(): React.ReactElement {
   const [searchParams] = useSearchParams();
@@ -35,26 +29,15 @@ export function VerifyEmailPage(): React.ReactElement {
 
     void (async () => {
       try {
-        const res = await fetch('/api/auth/verify-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-
-        if (res.ok) {
-          const data = (await res.json()) as AuthResponseDto;
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('refreshToken', data.refreshToken);
-          setUser(data.user);
-          setStatus('success');
-          setTimeout(() => navigate('/', { replace: true }), 2000);
-        } else {
-          const body = (await res.json().catch(() => ({}))) as { message?: string };
-          setErrorMessage(body.message ?? 'Invalid or expired verification link.');
-          setStatus('error');
-        }
-      } catch {
-        setErrorMessage('Network error. Please try again.');
+        const { data } = await authApi.verifyEmail({ token });
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        setUser(data.user);
+        setStatus('success');
+        setTimeout(() => navigate('/', { replace: true }), 2000);
+      } catch (err: unknown) {
+        const body = (err as { response?: { data?: { message?: string } } }).response?.data;
+        setErrorMessage(body?.message ?? 'Invalid or expired verification link.');
         setStatus('error');
       }
     })();

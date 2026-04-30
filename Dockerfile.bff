@@ -1,6 +1,9 @@
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
 FROM node:24-alpine AS builder
 
+# Build tools needed to compile native addons (e.g. bigint-buffer used by @solana/web3.js)
+RUN apk add --no-cache python3 make g++
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
 
@@ -26,8 +29,8 @@ RUN pnpm --filter bff build
 # ── Stage 2: Production ───────────────────────────────────────────────────────
 FROM node:24-alpine AS production
 
-# dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# dumb-init for proper signal handling + build tools needed to compile native addons
+RUN apk add --no-cache dumb-init python3 make g++
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
