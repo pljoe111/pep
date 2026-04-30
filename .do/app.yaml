@@ -1,43 +1,32 @@
 ###############################################################################
-# DigitalOcean App Platform Spec
-# Deploy: https://cloud.digitalocean.com/apps/new?repo=<your-github-url>
-# Or via CLI: doctl apps create --spec .do/app.yaml
+# DigitalOcean App Platform Spec — v2 schema
+# Upload this file at: Apps → Create App → Edit Plan → Upload Spec
+# Or paste contents into the YAML editor in the dashboard.
 #
-# Required secrets to set after first deploy (or before via doctl):
-#   DATABASE_URL         — injected automatically from the db component below
-#   JWT_SECRET           — min 32-char random string (openssl rand -hex 32)
-#   MASTER_WALLET_PUBLIC_KEY
-#   MASTER_WALLET_PRIVATE_KEY
-#   ENCRYPTION_KEY       — 64-char hex string (openssl rand -hex 32)
-#   USDC_MINT
-#   USDT_MINT
-#   PYUSD_MINT
-#   SMTP_USER / SMTP_PASS  (or RESEND_API_KEY if using Resend)
+# After first deploy, set the SECRET env vars in:
+#   App → Settings → App-Level Environment Variables
 ###############################################################################
 
 name: peplab
-
 region: nyc
 
-# ── Database ──────────────────────────────────────────────────────────────────
 databases:
   - name: db
     engine: PG
     version: '16'
-    size: db-s-1vcpu-1gb # cheapest tier; bump to db-s-1vcpu-2gb for prod
+    size: db-s-1vcpu-1gb
     num_nodes: 1
-    production: false # set true for daily backups
+    production: false
 
-# ── Services ──────────────────────────────────────────────────────────────────
 services:
-  # ── BFF (Express API) ───────────────────────────────────────────────────────
+  # ── BFF — Express API ───────────────────────────────────────────────────────
   - name: bff
     dockerfile_path: Dockerfile.bff
-    source_dir: /
     github:
+      repo: pljoe111/pep
       branch: main
       deploy_on_push: true
-    instance_size_slug: apps-s-1vcpu-0.5gb # cheapest; bump for prod
+    instance_size_slug: apps-s-1vcpu-0.5gb
     instance_count: 1
     http_port: 3000
     health_check:
@@ -45,174 +34,125 @@ services:
       initial_delay_seconds: 30
       period_seconds: 15
       timeout_seconds: 5
-      success_threshold: 1
       failure_threshold: 3
-
-    # Internal-only — not exposed directly to the internet
-    # The FE nginx proxies /api → this service
-    internal_ports:
-      - 3000
-
     envs:
       - key: NODE_ENV
         value: production
         scope: RUN_TIME
-
       - key: PORT
         value: '3000'
         scope: RUN_TIME
-
       - key: HOST
         value: '0.0.0.0'
         scope: RUN_TIME
-
       - key: DATABASE_URL
         value: ${db.DATABASE_URL}
         scope: RUN_TIME
-
       - key: REDIS_URL
         value: 'redis://localhost:6379'
         scope: RUN_TIME
-
-      # CORS — allow the FE service URL (set after first deploy, or use wildcard for now)
       - key: CORS_ORIGIN
         value: ${APP_URL}
         scope: RUN_TIME
-
-      - key: ENABLE_SWAGGER
-        value: 'false'
-        scope: RUN_TIME
-
       - key: APP_URL
         value: ${APP_URL}
         scope: RUN_TIME
-
       - key: FRONTEND_URL
         value: ${APP_URL}
         scope: RUN_TIME
-
-      # ── Secrets (fill these in the DO dashboard or with doctl) ──────────────
+      - key: ENABLE_SWAGGER
+        value: 'false'
+        scope: RUN_TIME
       - key: JWT_SECRET
         scope: RUN_TIME
         type: SECRET
-
       - key: MASTER_WALLET_PUBLIC_KEY
         scope: RUN_TIME
         type: SECRET
-
       - key: MASTER_WALLET_PRIVATE_KEY
         scope: RUN_TIME
         type: SECRET
-
       - key: ENCRYPTION_KEY
         scope: RUN_TIME
         type: SECRET
-
       - key: USDC_MINT
         value: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
         scope: RUN_TIME
-
       - key: USDT_MINT
         value: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
         scope: RUN_TIME
-
       - key: PYUSD_MINT
         value: '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo'
         scope: RUN_TIME
-
       - key: SOLANA_NETWORK
         value: 'mainnet-beta'
         scope: RUN_TIME
-
       - key: SOLANA_RPC_URL
         value: 'https://api.mainnet-beta.solana.com'
         scope: RUN_TIME
-
       - key: EMAIL_PROVIDER
         value: 'nodemailer'
         scope: RUN_TIME
-
       - key: SMTP_HOST
         value: 'smtp.gmail.com'
         scope: RUN_TIME
-
       - key: SMTP_PORT
         value: '587'
         scope: RUN_TIME
-
       - key: SMTP_USER
         scope: RUN_TIME
         type: SECRET
-
       - key: SMTP_PASS
         scope: RUN_TIME
         type: SECRET
-
       - key: RESEND_API_KEY
         scope: RUN_TIME
         type: SECRET
-
       - key: EMAIL_FROM
         value: 'noreply@peplab.app'
         scope: RUN_TIME
-
       - key: OPERATOR_ALERT_EMAIL
         value: 'ops@peplab.app'
         scope: RUN_TIME
-
       - key: CONSOLIDATION_THRESHOLD_USDC
         value: '100'
         scope: RUN_TIME
-
       - key: CONSOLIDATION_THRESHOLD_PYUSD
         value: '100'
         scope: RUN_TIME
-
-      # AWS S3 (for COA uploads) — leave empty to use local fallback
       - key: AWS_ACCESS_KEY_ID
         scope: RUN_TIME
         type: SECRET
-
       - key: AWS_SECRET_ACCESS_KEY
         scope: RUN_TIME
         type: SECRET
-
       - key: AWS_REGION
         value: 'us-east-1'
         scope: RUN_TIME
-
       - key: AWS_S3_BUCKET
         value: 'peplab-coas'
         scope: RUN_TIME
 
-  # ── Frontend (nginx static + API proxy) ─────────────────────────────────────
+  # ── FE — nginx SPA + /api proxy ─────────────────────────────────────────────
   - name: fe
     dockerfile_path: Dockerfile.fe
-    source_dir: /
     github:
+      repo: pljoe111/pep
       branch: main
       deploy_on_push: true
     instance_size_slug: apps-s-1vcpu-0.5gb
     instance_count: 1
     http_port: 80
-
     health_check:
       http_path: /health
       initial_delay_seconds: 10
       period_seconds: 15
       timeout_seconds: 5
-
-    # This service is the public-facing entry point
     routes:
       - path: /
-
     envs:
-      # Points nginx's /api proxy to the BFF service on DO's private network.
-      # ${bff.PRIVATE_URL} is auto-injected by App Platform at runtime.
+      # DO injects ${bff.PRIVATE_URL} — the internal hostname of the bff service.
+      # nginx substitutes this at container start via envsubst.
       - key: BFF_INTERNAL_URL
         value: ${bff.PRIVATE_URL}
         scope: RUN_TIME
-
-    build_args:
-      - key: VITE_API_URL
-        value: '/api'
