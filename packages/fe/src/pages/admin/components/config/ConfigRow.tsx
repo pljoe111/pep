@@ -77,6 +77,7 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
             { key: 'min_funding_threshold_usd', label: 'Min Funding Threshold (USD)' },
             { key: 'min_funding_threshold_percent', label: 'Min Funding Threshold (%)' },
             { key: 'min_withdrawal_usd', label: 'Min Withdrawal (USD)' },
+            { key: 'min_creator_balance_usd', label: 'Min Creator Balance (USD)' },
           ].map((field) => (
             <div key={field.key} className="space-y-1">
               <label className="text-xs font-medium text-text-2">{field.label}</label>
