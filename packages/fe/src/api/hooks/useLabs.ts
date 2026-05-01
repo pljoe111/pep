@@ -6,7 +6,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../axiosInstance';
 import { labsApi, testsApi } from '../apiClient';
 import { queryKeys } from '../queryKeys';
-import type { TestClaimTemplateDto, ClaimKind } from 'api-client';
+import type {
+  CreateLabDto,
+  CreateTestDto,
+  LabDto,
+  TestClaimTemplateDto,
+  TestDto,
+  UpdateLabDto,
+  ClaimKind,
+} from 'api-client';
 
 /** All labs (for admin panel) */
 export function useLabs(approvedOnly = false, activeOnly = true) {
@@ -240,6 +248,49 @@ export function useDeleteTest() {
   return useMutation({
     mutationFn: async (testId: string) => {
       await axiosInstance.delete(`/tests/${testId}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['tests'] });
+    },
+  });
+}
+
+/** Admin: create a lab */
+export function useCreateLab() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: CreateLabDto): Promise<LabDto> => {
+      const res = await labsApi.create(dto);
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['labs'] });
+    },
+  });
+}
+
+/** Admin: update a lab */
+export function useUpdateLab() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, dto }: { id: string; dto: UpdateLabDto }): Promise<LabDto> => {
+      const res = await labsApi.update(id, dto);
+      return res.data;
+    },
+    onSuccess: (_, { id }) => {
+      void qc.invalidateQueries({ queryKey: ['labs'] });
+      void qc.invalidateQueries({ queryKey: queryKeys.labs.detail(id) });
+    },
+  });
+}
+
+/** Admin: create a test type */
+export function useCreateTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: CreateTestDto): Promise<TestDto> => {
+      const res = await testsApi.createTest(dto);
+      return res.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['tests'] });

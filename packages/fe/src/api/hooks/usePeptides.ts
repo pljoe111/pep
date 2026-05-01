@@ -45,7 +45,8 @@ export function useSubmitPeptide() {
       return res.data;
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      // Use prefix ['peptides', 'all'] to match both showUnreviewed=true and false
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -60,7 +61,7 @@ export function useCreatePeptide() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.peptides.active });
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -75,7 +76,7 @@ export function useUpdatePeptide() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.peptides.active });
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -90,7 +91,7 @@ export function useApprovePeptide() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.peptides.active });
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -103,7 +104,7 @@ export function useRejectPeptide() {
       await peptidesApi.rejectPeptide(id);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -118,7 +119,7 @@ export function useDisablePeptide() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.peptides.active });
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -133,7 +134,7 @@ export function useEnablePeptide() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.peptides.active });
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }
@@ -146,7 +147,7 @@ export function useDeletePeptide() {
       await peptidesApi.deletePeptide(id);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.peptides.all() });
+      void qc.invalidateQueries({ queryKey: ['peptides', 'all'] });
     },
   });
 }

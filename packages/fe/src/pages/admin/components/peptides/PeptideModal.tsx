@@ -5,7 +5,7 @@ import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { useToast } from '../../../../hooks/useToast';
-import { peptidesApi } from '../../../../api/apiClient';
+import { useCreatePeptide, useUpdatePeptide } from '../../../../api/hooks/usePeptides';
 
 interface PeptideModalProps {
   mode: 'create' | 'edit';
@@ -38,8 +38,11 @@ export function PeptideModal({
   const [aliasInput, setAliasInput] = useState('');
   const [description, setDescription] = useState(peptide?.description ?? '');
   const [isActive, setIsActive] = useState(peptide?.is_active ?? true);
-  const [loading, setLoading] = useState(false);
   const toast = useToast();
+
+  const createMutation = useCreatePeptide();
+  const updateMutation = useUpdatePeptide();
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleAddAlias = (): void => {
     const trimmed = aliasInput.trim();
@@ -65,21 +68,23 @@ export function PeptideModal({
       toast.error('Name is required');
       return;
     }
-    setLoading(true);
     try {
       if (mode === 'create') {
-        await peptidesApi.createPeptide({
+        await createMutation.mutateAsync({
           name: name.trim(),
           aliases,
           description: description.trim() || undefined,
         });
         toast.success('Peptide created');
       } else if (peptide) {
-        await peptidesApi.updatePeptide(peptide.id, {
-          name: name.trim(),
-          aliases,
-          description: description.trim() || undefined,
-          is_active: isActive,
+        await updateMutation.mutateAsync({
+          id: peptide.id,
+          dto: {
+            name: name.trim(),
+            aliases,
+            description: description.trim() || undefined,
+            is_active: isActive,
+          },
         });
         toast.success('Peptide updated');
       }
@@ -87,8 +92,6 @@ export function PeptideModal({
       onClose();
     } catch (e: unknown) {
       toast.error(extractApiError(e, 'Failed to save peptide'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -151,13 +154,13 @@ export function PeptideModal({
           </label>
         )}
         <div className="flex gap-2">
-          <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
+          <Button variant="ghost" fullWidth onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
           <Button
             variant="primary"
             fullWidth
-            loading={loading}
+            loading={isPending}
             onClick={() => {
               void handleSubmit();
             }}

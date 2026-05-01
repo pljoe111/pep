@@ -4,7 +4,7 @@ import { Modal } from '../../../../components/ui/Modal';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { useToast } from '../../../../hooks/useToast';
-import { labsApi } from '../../../../api/apiClient';
+import { useCreateLab, useUpdateLab, useAddLabTest } from '../../../../api/hooks/useLabs';
 import { LabTestTable, type PendingLabTest } from './LabTestTable';
 
 interface LabModalProps {
@@ -49,8 +49,12 @@ export function LabModal({
   const [address, setAddress] = useState(lab?.address ?? '');
   const [pendingTests, setPendingTests] = useState<PendingLabTest[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
   const toast = useToast();
+
+  const createMutation = useCreateLab();
+  const updateMutation = useUpdateLab();
+  const addLabTestMutation = useAddLabTest();
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleAddPending = (t: PendingLabTest): void => {
     setPendingTests((prev) => [...prev, t]);
@@ -74,8 +78,9 @@ export function LabModal({
 
     if (!lab) return;
     try {
-      await labsApi.addTest(lab.id, {
-        test_id: data.testId,
+      await addLabTestMutation.mutateAsync({
+        labId: lab.id,
+        testId: data.testId,
         price_usd: Number(data.price),
         typical_turnaround_days: Number(data.days),
         vials_required: Number(data.vials),
@@ -105,18 +110,18 @@ export function LabModal({
       return;
     }
 
-    setLoading(true);
     try {
       if (mode === 'create') {
-        const created = await labsApi.create({
+        const created = await createMutation.mutateAsync({
           name: name.trim(),
           country: country.trim(),
           phone_number: phone.trim() || undefined,
           address: address.trim() || undefined,
         });
         for (const pt of pendingTests) {
-          await labsApi.addTest(created.data.id, {
-            test_id: pt.testId,
+          await addLabTestMutation.mutateAsync({
+            labId: created.id,
+            testId: pt.testId,
             price_usd: Number(pt.price),
             typical_turnaround_days: Number(pt.days),
             vials_required: Number(pt.vials),
@@ -125,11 +130,14 @@ export function LabModal({
         }
         toast.success('Lab created');
       } else if (lab) {
-        await labsApi.update(lab.id, {
-          name: name.trim(),
-          country: country.trim(),
-          phone_number: phone.trim() || undefined,
-          address: address.trim() || undefined,
+        await updateMutation.mutateAsync({
+          id: lab.id,
+          dto: {
+            name: name.trim(),
+            country: country.trim(),
+            phone_number: phone.trim() || undefined,
+            address: address.trim() || undefined,
+          },
         });
         toast.success('Lab updated');
       }
@@ -139,8 +147,6 @@ export function LabModal({
       toast.error(
         extractApiError(e, mode === 'create' ? 'Failed to create lab' : 'Failed to update lab')
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -201,13 +207,13 @@ export function LabModal({
         </div>
 
         <div className="flex gap-2">
-          <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
+          <Button variant="ghost" fullWidth onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
           <Button
             variant="primary"
             fullWidth
-            loading={loading}
+            loading={isPending}
             onClick={() => {
               void handleSubmit();
             }}

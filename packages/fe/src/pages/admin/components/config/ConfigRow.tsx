@@ -10,6 +10,16 @@ interface ConfigRowProps {
   isSaving: boolean;
 }
 
+/** snake_case key → human-readable label */
+function formatKey(key: string): string {
+  return key
+    .replace(/_usd$/, ' (USD)')
+    .replace(/_percent$/, ' (%)')
+    .replace(/_bps$/, ' (bps)')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.ReactElement {
   const [value, setValue] = useState<unknown>(cfg.config_value);
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +35,12 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
       }
     }
 
-    if (cfg.config_key === 'global_minimums' && typeof val === 'object' && val !== null) {
-      const v = val as Record<string, number>;
-      if (Object.values(v).some((n) => n < 0)) {
+    if (typeof val === 'object' && val !== null) {
+      const nums = Object.values(val as Record<string, unknown>).filter(
+        (v) => typeof v === 'number'
+      );
+      if (nums.some((n) => n < 0)) {
         return 'Values cannot be negative';
-      }
-    }
-
-    if (typeof val === 'object' && val !== null && 'value' in val) {
-      const v = (val as { value: number }).value;
-      if (typeof v === 'number' && v < 0) {
-        return 'Value cannot be negative';
       }
     }
 
@@ -66,34 +71,7 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
   };
 
   const renderInput = (): React.ReactElement => {
-    // ─── Specialized Object Editors ──────────────────────────────────────────
-
-    if (cfg.config_key === 'global_minimums' && typeof value === 'object' && value !== null) {
-      const v = value as Record<string, number>;
-      return (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[
-            { key: 'min_contribution_usd', label: 'Min Contribution (USD)' },
-            { key: 'min_funding_threshold_usd', label: 'Min Funding Threshold (USD)' },
-            { key: 'min_funding_threshold_percent', label: 'Min Funding Threshold (%)' },
-            { key: 'min_withdrawal_usd', label: 'Min Withdrawal (USD)' },
-            { key: 'min_creator_balance_usd', label: 'Min Creator Balance (USD)' },
-          ].map((field) => (
-            <div key={field.key} className="space-y-1">
-              <label className="text-xs font-medium text-text-2">{field.label}</label>
-              <input
-                type="number"
-                step="0.01"
-                value={v[field.key] ?? 0}
-                onChange={(e) => updateObjectField(field.key, Number(e.target.value))}
-                className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-              />
-            </div>
-          ))}
-        </div>
-      );
-    }
-
+    // ─── Special: default_sweep_wallet — Solana address needs mono + validation ──
     if (cfg.config_key === 'default_sweep_wallet' && typeof value === 'object' && value !== null) {
       const v = value as { address?: string };
       return (
@@ -110,33 +88,7 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
       );
     }
 
-    if (
-      [
-        'platform_fee_percent',
-        'max_campaign_multiplier',
-        'auto_flag_threshold_usd',
-        'max_withdrawal_per_day',
-        'max_file_size_bytes',
-      ].includes(cfg.config_key) &&
-      typeof value === 'object' &&
-      value !== null &&
-      'value' in value
-    ) {
-      const v = value as { value: number };
-      return (
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-text-2">Value</label>
-          <input
-            type="number"
-            step={cfg.config_key.includes('percent') ? '0.1' : '1'}
-            value={v.value ?? 0}
-            onChange={(e) => updateObjectField('value', Number(e.target.value))}
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
-          />
-        </div>
-      );
-    }
-
+    // ─── Special: valid_mass_units — array serialised as comma-separated string ──
     if (cfg.config_key === 'valid_mass_units' && typeof value === 'object' && value !== null) {
       const v = value as { units?: string[] };
       return (
@@ -160,7 +112,87 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
       );
     }
 
-    // ─── Generic Fallback Editors ────────────────────────────────────────────
+    // ─── Generic: { value: <primitive> } single-value wrapper ────────────────────
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === 1 &&
+      'value' in value
+    ) {
+      const v = value as { value: unknown };
+      if (typeof v.value === 'number') {
+        return (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-text-2">Value</label>
+            <input
+              type="number"
+              step={cfg.config_key.includes('percent') ? '0.1' : '1'}
+              value={v.value}
+              onChange={(e) => updateObjectField('value', Number(e.target.value))}
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+            />
+          </div>
+        );
+      }
+      if (typeof v.value === 'string') {
+        return (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-text-2">Value</label>
+            <input
+              type="text"
+              value={v.value}
+              onChange={(e) => updateObjectField('value', e.target.value)}
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+            />
+          </div>
+        );
+      }
+    }
+
+    // ─── Generic: flat Record<string, primitive> — auto-render one input per key ─
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      const entries = Object.entries(value as Record<string, unknown>);
+      const allPrimitive = entries.every(([, v]) =>
+        ['number', 'string', 'boolean'].includes(typeof v)
+      );
+      if (allPrimitive) {
+        return (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {entries.map(([key, fieldValue]) => (
+              <div key={key} className="space-y-1">
+                <label className="text-xs font-medium text-text-2">{formatKey(key)}</label>
+                {typeof fieldValue === 'boolean' ? (
+                  <label className="flex items-center gap-2 text-sm text-text min-h-[44px]">
+                    <input
+                      type="checkbox"
+                      checked={fieldValue}
+                      onChange={(e) => updateObjectField(key, e.target.checked)}
+                    />
+                    {fieldValue ? 'true' : 'false'}
+                  </label>
+                ) : (
+                  <input
+                    type={typeof fieldValue === 'number' ? 'number' : 'text'}
+                    step={typeof fieldValue === 'number' ? '0.01' : undefined}
+                    value={typeof fieldValue === 'number' ? fieldValue : (fieldValue as string)}
+                    onChange={(e) =>
+                      updateObjectField(
+                        key,
+                        typeof fieldValue === 'number' ? Number(e.target.value) : e.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border border-border px-3 py-2 text-sm text-text bg-surface min-h-[44px]"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+    }
+
+    // ─── Primitive fallbacks ──────────────────────────────────────────────────────
 
     if (typeof value === 'boolean') {
       return (
@@ -195,6 +227,8 @@ export function ConfigRow({ cfg, onSave, isSaving }: ConfigRowProps): React.Reac
         />
       );
     }
+
+    // ─── JSON textarea fallback for complex / unknown shapes ─────────────────────
     return (
       <textarea
         value={JSON.stringify(value, null, 2)}

@@ -5,8 +5,7 @@ import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { useToast } from '../../../../hooks/useToast';
-import { testsApi } from '../../../../api/apiClient';
-import axiosInstance from '../../../../api/axiosInstance';
+import { useCreateTest, useCreateTestClaimTemplate } from '../../../../api/hooks/useLabs';
 
 interface CreateTestModalProps {
   onClose: () => void;
@@ -39,8 +38,11 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
   const [uspCode, setUspCode] = useState('');
   const [vialsRequired, setVialsRequired] = useState('1');
   const [pendingTemplates, setPendingTemplates] = useState<PendingTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
   const toast = useToast();
+
+  const createTestMutation = useCreateTest();
+  const createTemplateMutation = useCreateTestClaimTemplate();
+  const isPending = createTestMutation.isPending || createTemplateMutation.isPending;
 
   const handleAddTemplate = (): void => {
     setPendingTemplates((prev) => [
@@ -71,9 +73,8 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
       return;
     }
 
-    setLoading(true);
     try {
-      const created = await testsApi.createTest({
+      const created = await createTestMutation.mutateAsync({
         name: name.trim(),
         description: description.trim(),
         usp_code: uspCode.trim() || undefined,
@@ -82,7 +83,8 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
 
       for (const tpl of pendingTemplates) {
         if (tpl.label.trim()) {
-          await axiosInstance.post(`/tests/${created.data.id}/claim-templates`, {
+          await createTemplateMutation.mutateAsync({
+            testId: created.id,
             claim_kind: tpl.claim_kind,
             label: tpl.label.trim(),
             is_required: tpl.is_required,
@@ -96,8 +98,6 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
       onClose();
     } catch (e: unknown) {
       toast.error(extractApiError(e, 'Failed to create test'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -194,13 +194,13 @@ export function CreateTestModal({ onClose, onCreated }: CreateTestModalProps): R
         </div>
 
         <div className="flex gap-2">
-          <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
+          <Button variant="ghost" fullWidth onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
           <Button
             variant="primary"
             fullWidth
-            loading={loading}
+            loading={isPending}
             onClick={() => {
               void handleCreate();
             }}

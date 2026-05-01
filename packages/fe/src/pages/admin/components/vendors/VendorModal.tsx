@@ -5,7 +5,7 @@ import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Textarea } from '../../../../components/ui/Textarea';
 import { useToast } from '../../../../hooks/useToast';
-import { vendorsApi } from '../../../../api/apiClient';
+import { useCreateVendor, useUpdateVendor } from '../../../../api/hooks/useVendors';
 
 interface VendorModalProps {
   mode: 'create' | 'edit';
@@ -41,18 +41,20 @@ export function VendorModal({
   const [status, setStatus] = useState<'approved' | 'pending' | 'rejected'>(
     vendor?.status ?? 'pending'
   );
-  const [loading, setLoading] = useState(false);
   const toast = useToast();
+
+  const createMutation = useCreateVendor();
+  const updateMutation = useUpdateVendor();
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (): Promise<void> => {
     if (!name.trim()) {
       toast.error('Name is required');
       return;
     }
-    setLoading(true);
     try {
       if (mode === 'create') {
-        await vendorsApi.createVendor({
+        await createMutation.mutateAsync({
           name: name.trim(),
           website: website.trim() || undefined,
           country: country.trim() || undefined,
@@ -61,13 +63,16 @@ export function VendorModal({
         });
         toast.success('Vendor created');
       } else if (vendor) {
-        await vendorsApi.updateVendor(vendor.id, {
-          name: name.trim(),
-          website: website.trim() || undefined,
-          country: country.trim() || undefined,
-          telegram_group: telegram.trim() || undefined,
-          contact_notes: contactNotes.trim() || undefined,
-          status,
+        await updateMutation.mutateAsync({
+          id: vendor.id,
+          dto: {
+            name: name.trim(),
+            website: website.trim() || undefined,
+            country: country.trim() || undefined,
+            telegram_group: telegram.trim() || undefined,
+            contact_notes: contactNotes.trim() || undefined,
+            status,
+          },
         });
         toast.success('Vendor updated');
       }
@@ -75,8 +80,6 @@ export function VendorModal({
       onClose();
     } catch (e: unknown) {
       toast.error(extractApiError(e, 'Failed to save vendor'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -132,13 +135,13 @@ export function VendorModal({
           </div>
         )}
         <div className="flex gap-2">
-          <Button variant="ghost" fullWidth onClick={onClose} disabled={loading}>
+          <Button variant="ghost" fullWidth onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
           <Button
             variant="primary"
             fullWidth
-            loading={loading}
+            loading={isPending}
             onClick={() => {
               void handleSubmit();
             }}
