@@ -4,7 +4,11 @@ import { IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validat
 // (Prisma enums are imported from @prisma/client in bff service code per rule 2.4;
 //  common intentionally uses string literal types to avoid coupling to @prisma/client)
 
-export type ClaimType = 'campaign_creator' | 'contributor' | 'lab_approver' | 'admin';
+export type ClaimType =
+  | 'campaign_creator'
+  | 'contributor'
+  | 'user_submitted_data_approver'
+  | 'admin';
 
 // ─── Response DTOs ────────────────────────────────────────────────────────────
 

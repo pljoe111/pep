@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUnreadNotificationCount } from '../../api/hooks/useNotifications';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const TopBar: React.FC = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const { data: unreadData } = useUnreadNotificationCount();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
+  const claims = user?.claims ?? [];
+  const isAdminOrModerator =
+    claims.includes('admin') || claims.includes('user_submitted_data_approver');
   const unreadCount = unreadData?.count ?? 0;
 
   return (
@@ -22,6 +25,16 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <>
+              {isAdminOrModerator && (
+                <Link
+                  to="/admin"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-text-2 transition-colors hover:bg-surface-a"
+                  aria-label="Admin panel"
+                  title="Admin panel"
+                >
+                  <ShieldCheck size={20} />
+                </Link>
+              )}
               <div className="relative">
                 <button
                   onClick={() => setIsNotifOpen(!isNotifOpen)}

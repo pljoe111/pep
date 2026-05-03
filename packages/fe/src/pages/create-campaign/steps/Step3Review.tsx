@@ -48,13 +48,9 @@ export function Step3Review({ formState, estimatedLabCost, onBack, onSuccess }: 
           claims: s.claims.map(
             (c): SampleClaimInputDto => ({
               claim_type: c.type as ClaimKind,
-              // Map values based on type if needed, but for now we follow the DTO
-              // Note: The common DTO has specific fields for each type.
-              // Our ClaimForm seems to have a generic value string.
-              // We might need to refine this mapping if the backend expects specific fields.
-              // For now, we'll try to match the DTO as best as we can.
               ...(c.type === 'purity' ? { purity_percent: parseFloat(c.value) } : {}),
               ...(c.type === 'mass' ? { mass_amount: parseFloat(c.value), mass_unit: 'mg' } : {}),
+              ...(c.type === 'identity' ? { identity_peptide_id: s.peptideId } : {}),
               ...(c.type === 'other' ? { other_description: c.value } : {}),
             })
           ),

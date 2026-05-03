@@ -23,7 +23,7 @@
 export const ClaimType = {
     CampaignCreator: 'campaign_creator',
     Contributor: 'contributor',
-    LabApprover: 'lab_approver',
+    UserSubmittedDataApprover: 'user_submitted_data_approver',
     Admin: 'admin'
 } as const;
 

@@ -463,7 +463,7 @@
 				"enum": [
 					"campaign_creator",
 					"contributor",
-					"lab_approver",
+					"user_submitted_data_approver",
 					"admin"
 				]
 			},
@@ -4246,13 +4246,16 @@
 						}
 					}
 				},
-				"description": "GET /peptides/all — admin only\nReturns all peptides including unreviewed (is_active=false).",
+				"description": "GET /peptides/all — admin or moderator (user_submitted_data_approver)\nReturns all peptides including unreviewed (is_active=false).",
 				"tags": [
 					"Peptides"
 				],
 				"security": [
 					{
-						"jwt": []
+						"jwt": [
+							"admin",
+							"user_submitted_data_approver"
+						]
 					}
 				],
 				"parameters": [
@@ -4392,13 +4395,16 @@
 						}
 					}
 				},
-				"description": "POST /peptides/:id/approve — admin",
+				"description": "POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)",
 				"tags": [
 					"Peptides"
 				],
 				"security": [
 					{
-						"jwt": []
+						"jwt": [
+							"admin",
+							"user_submitted_data_approver"
+						]
 					}
 				],
 				"parameters": [
@@ -4421,13 +4427,16 @@
 						"description": "No content"
 					}
 				},
-				"description": "Post /peptides/:id/reject — admin",
+				"description": "POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)",
 				"tags": [
 					"Peptides"
 				],
 				"security": [
 					{
-						"jwt": []
+						"jwt": [
+							"admin",
+							"user_submitted_data_approver"
+						]
 					}
 				],
 				"parameters": [
@@ -4817,7 +4826,7 @@
 						}
 					}
 				},
-				"description": "POST /labs — lab_approver required",
+				"description": "POST /labs — user_submitted_data_approver required",
 				"tags": [
 					"Labs"
 				],

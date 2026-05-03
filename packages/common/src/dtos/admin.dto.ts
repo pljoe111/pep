@@ -35,7 +35,7 @@ export class AdminBanUserDto {
 }
 
 export class AdminClaimDto {
-  @IsEnum(['campaign_creator', 'contributor', 'lab_approver', 'admin'] as const)
+  @IsEnum(['campaign_creator', 'contributor', 'user_submitted_data_approver', 'admin'] as const)
   claim_type!: ClaimType;
 
   @IsEnum(['grant', 'revoke'] as const)

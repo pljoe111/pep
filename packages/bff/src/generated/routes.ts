@@ -230,7 +230,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ClaimType": {
         "dataType": "refAlias",
-        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["campaign_creator"]},{"dataType":"enum","enums":["contributor"]},{"dataType":"enum","enums":["lab_approver"]},{"dataType":"enum","enums":["admin"]}],"validators":{}},
+        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["campaign_creator"]},{"dataType":"enum","enums":["contributor"]},{"dataType":"enum","enums":["user_submitted_data_approver"]},{"dataType":"enum","enums":["admin"]}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "UserStatsDto": {
@@ -2317,7 +2317,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 show_unreviewed: {"in":"query","name":"show_unreviewed","dataType":"boolean"},
         };
         app.get('/api/peptides/all',
-            authenticateMiddleware([{"jwt":[]}]),
+            authenticateMiddleware([{"jwt":["admin","user_submitted_data_approver"]}]),
             ...(fetchMiddlewares<RequestHandler>(PeptideController)),
             ...(fetchMiddlewares<RequestHandler>(PeptideController.prototype.getAll)),
 
@@ -2466,7 +2466,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 req: {"in":"request","name":"req","required":true,"dataType":"object"},
         };
         app.post('/api/peptides/:id/approve',
-            authenticateMiddleware([{"jwt":[]}]),
+            authenticateMiddleware([{"jwt":["admin","user_submitted_data_approver"]}]),
             ...(fetchMiddlewares<RequestHandler>(PeptideController)),
             ...(fetchMiddlewares<RequestHandler>(PeptideController.prototype.approve)),
 
@@ -2503,7 +2503,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 req: {"in":"request","name":"req","required":true,"dataType":"object"},
         };
         app.post('/api/peptides/:id/reject',
-            authenticateMiddleware([{"jwt":[]}]),
+            authenticateMiddleware([{"jwt":["admin","user_submitted_data_approver"]}]),
             ...(fetchMiddlewares<RequestHandler>(PeptideController)),
             ...(fetchMiddlewares<RequestHandler>(PeptideController.prototype.reject)),
 

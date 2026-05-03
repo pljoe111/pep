@@ -16,7 +16,7 @@ datasource db {
 enum ClaimType {
   campaign_creator
   contributor
-  lab_approver
+  user_submitted_data_approver
   admin
 }
 

@@ -36,7 +36,7 @@ import { UpdatePeptideDto } from '../models';
 export const PeptidesApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * POST /peptides/:id/approve — admin
+         * POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -252,7 +252,7 @@ export const PeptidesApiAxiosParamCreator = function (configuration?: Configurat
             };
         },
         /**
-         * GET /peptides/all — admin only Returns all peptides including unreviewed (is_active=false).
+         * GET /peptides/all — admin or moderator (user_submitted_data_approver) Returns all peptides including unreviewed (is_active=false).
          * @param {boolean} [showUnreviewed] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -290,7 +290,7 @@ export const PeptidesApiAxiosParamCreator = function (configuration?: Configurat
             };
         },
         /**
-         * Post /peptides/:id/reject — admin
+         * POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -419,7 +419,7 @@ export const PeptidesApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = PeptidesApiAxiosParamCreator(configuration)
     return {
         /**
-         * POST /peptides/:id/approve — admin
+         * POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -490,7 +490,7 @@ export const PeptidesApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, operationBasePath || basePath);
         },
         /**
-         * GET /peptides/all — admin only Returns all peptides including unreviewed (is_active=false).
+         * GET /peptides/all — admin or moderator (user_submitted_data_approver) Returns all peptides including unreviewed (is_active=false).
          * @param {boolean} [showUnreviewed] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -502,7 +502,7 @@ export const PeptidesApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, operationBasePath || basePath);
         },
         /**
-         * Post /peptides/:id/reject — admin
+         * POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -549,7 +549,7 @@ export const PeptidesApiFactory = function (configuration?: Configuration, baseP
     const localVarFp = PeptidesApiFp(configuration)
     return {
         /**
-         * POST /peptides/:id/approve — admin
+         * POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -602,7 +602,7 @@ export const PeptidesApiFactory = function (configuration?: Configuration, baseP
             return localVarFp.getActivePeptides(options).then((request) => request(axios, basePath));
         },
         /**
-         * GET /peptides/all — admin only Returns all peptides including unreviewed (is_active=false).
+         * GET /peptides/all — admin or moderator (user_submitted_data_approver) Returns all peptides including unreviewed (is_active=false).
          * @param {boolean} [showUnreviewed] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -611,7 +611,7 @@ export const PeptidesApiFactory = function (configuration?: Configuration, baseP
             return localVarFp.getAllPeptides(showUnreviewed, options).then((request) => request(axios, basePath));
         },
         /**
-         * Post /peptides/:id/reject — admin
+         * POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -649,7 +649,7 @@ export const PeptidesApiFactory = function (configuration?: Configuration, baseP
  */
 export class PeptidesApi extends BaseAPI {
     /**
-     * POST /peptides/:id/approve — admin
+     * POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)
      * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -714,7 +714,7 @@ export class PeptidesApi extends BaseAPI {
     }
 
     /**
-     * GET /peptides/all — admin only Returns all peptides including unreviewed (is_active=false).
+     * GET /peptides/all — admin or moderator (user_submitted_data_approver) Returns all peptides including unreviewed (is_active=false).
      * @param {boolean} [showUnreviewed] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -725,7 +725,7 @@ export class PeptidesApi extends BaseAPI {
     }
 
     /**
-     * Post /peptides/:id/reject — admin
+     * POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)
      * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}

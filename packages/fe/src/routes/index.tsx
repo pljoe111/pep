@@ -33,7 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }): React.Reac
   return <>{children}</>;
 }
 
-/** Route guard: redirect to / if not admin */
+/** Route guard: redirect to / if not admin or moderator (user_submitted_data_approver) */
 function AdminRoute({ children }: { children: React.ReactNode }): React.ReactElement {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -45,7 +45,10 @@ function AdminRoute({ children }: { children: React.ReactNode }): React.ReactEle
     );
   }
 
-  if (!isAuthenticated || !(user?.claims ?? []).includes('admin')) {
+  const claims = user?.claims ?? [];
+  const hasAccess = claims.includes('admin') || claims.includes('user_submitted_data_approver');
+
+  if (!isAuthenticated || !hasAccess) {
     return <Navigate to="/" replace />;
   }
 

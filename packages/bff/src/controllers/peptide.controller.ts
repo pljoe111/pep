@@ -41,11 +41,11 @@ export class PeptideController extends Controller {
   }
 
   /**
-   * GET /peptides/all — admin only
+   * GET /peptides/all — admin or moderator (user_submitted_data_approver)
    * Returns all peptides including unreviewed (is_active=false).
    */
   @Get('/all')
-  @Security('jwt')
+  @Security('jwt', ['admin', 'user_submitted_data_approver'])
   @OperationId('GetAllPeptides')
   public async getAll(@Query() show_unreviewed?: boolean): Promise<PeptideDto[]> {
     return this.peptideService.listAll(show_unreviewed === true);
@@ -97,10 +97,10 @@ export class PeptideController extends Controller {
   }
 
   /**
-   * POST /peptides/:id/approve — admin
+   * POST /peptides/:id/approve — admin or moderator (user_submitted_data_approver)
    */
   @Post('{id}/approve')
-  @Security('jwt')
+  @Security('jwt', ['admin', 'user_submitted_data_approver'])
   @OperationId('ApprovePeptide')
   public async approve(@Path() id: string, @Request() req: AuthRequest): Promise<PeptideDto> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.
@@ -108,10 +108,10 @@ export class PeptideController extends Controller {
   }
 
   /**
-   * Post /peptides/:id/reject — admin
+   * POST /peptides/:id/reject — admin or moderator (user_submitted_data_approver)
    */
   @Post('{id}/reject')
-  @Security('jwt')
+  @Security('jwt', ['admin', 'user_submitted_data_approver'])
   @OperationId('RejectPeptide')
   public async reject(@Path() id: string, @Request() req: AuthRequest): Promise<void> {
     // SAFETY: expressAuthentication guarantees req.user on @Security routes.

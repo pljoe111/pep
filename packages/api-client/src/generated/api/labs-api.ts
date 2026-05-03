@@ -124,7 +124,7 @@ export const LabsApiAxiosParamCreator = function (configuration?: Configuration)
             };
         },
         /**
-         * POST /labs — lab_approver required
+         * POST /labs — user_submitted_data_approver required
          * @param {CreateLabDto} createLabDto 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -604,7 +604,7 @@ export const LabsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, operationBasePath || basePath);
         },
         /**
-         * POST /labs — lab_approver required
+         * POST /labs — user_submitted_data_approver required
          * @param {CreateLabDto} createLabDto 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -774,7 +774,7 @@ export const LabsApiFactory = function (configuration?: Configuration, basePath?
             return localVarFp.approve(id, options).then((request) => request(axios, basePath));
         },
         /**
-         * POST /labs — lab_approver required
+         * POST /labs — user_submitted_data_approver required
          * @param {CreateLabDto} createLabDto 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -915,7 +915,7 @@ export class LabsApi extends BaseAPI {
     }
 
     /**
-     * POST /labs — lab_approver required
+     * POST /labs — user_submitted_data_approver required
      * @param {CreateLabDto} createLabDto 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}

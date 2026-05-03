@@ -339,9 +339,9 @@ export class CoaService {
   }
 
   private async notifyReviewers(campaignId: string, _coaId: string): Promise<void> {
-    // Find all users with admin or lab_approver claims
+    // Find all users with admin or user_submitted_data_approver claims
     const reviewerClaims = await this.prisma.userClaim.findMany({
-      where: { claim_type: { in: ['admin', 'lab_approver'] } },
+      where: { claim_type: { in: ['admin', 'user_submitted_data_approver'] } },
       select: { user_id: true },
       distinct: ['user_id'],
     });

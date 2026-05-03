@@ -34,7 +34,7 @@ export interface JwtPayload {
 export function expressAuthentication(
   request: Request,
   securityName: string,
-  _scopes?: string[]
+  scopes?: string[]
 ): Promise<JwtPayload> {
   if (securityName !== 'jwt') {
     return Promise.reject(new AuthenticationError(`Unknown security scheme: ${securityName}`));
@@ -57,6 +57,15 @@ export function expressAuthentication(
 
   if (decoded.isBanned) {
     return Promise.reject(new AuthorizationError('Account suspended'));
+  }
+
+  // When an endpoint declares required scopes, the user must hold at least one
+  // of them (ANY-of semantics). Empty/absent scopes → authentication-only check.
+  if (scopes !== undefined && scopes.length > 0) {
+    const hasRequiredClaim = scopes.some((scope) => decoded.claims.includes(scope as ClaimType));
+    if (!hasRequiredClaim) {
+      return Promise.reject(new AuthorizationError('Insufficient permissions'));
+    }
   }
 
   return Promise.resolve(decoded);

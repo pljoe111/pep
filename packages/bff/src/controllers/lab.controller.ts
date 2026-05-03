@@ -58,7 +58,7 @@ export class LabController extends Controller {
     return this.labService.findById(id);
   }
 
-  /** POST /labs — lab_approver required */
+  /** POST /labs — user_submitted_data_approver required */
   @Post('/')
   @Security('jwt')
   public async create(@Body() body: CreateLabDto, @Request() req: AuthRequest): Promise<LabDto> {
